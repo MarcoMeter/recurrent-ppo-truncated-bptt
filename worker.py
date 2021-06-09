@@ -12,7 +12,7 @@ def worker_process(remote: multiprocessing.connection.Connection, env_name:str, 
     """
     # Spawn environment
     try:
-        env = create_env(env_name, env_path, worker_id)
+        env = create_env(env_name)
     except KeyboardInterrupt:
         pass
 

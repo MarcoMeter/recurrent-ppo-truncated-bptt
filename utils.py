@@ -3,7 +3,7 @@ from environments.minigrid_env import MinigridMemoryVector, MinigridMemoryVisual
 from environments.poc_memory_env import PocMemoryEnv
 
 
-def create_env(env_name:str, place_a = None, place_b = None):
+def create_env(env_name:str):
     """Initializes an environment based on the provided args.
     Args:
         env_name (str): Name of the to be instantiated environment
