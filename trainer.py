@@ -310,7 +310,7 @@ class PPOTrainer:
             sampled_episode_info = self.sample_training_data()
 
 
-            # 4.: Prepare the sampled data inside the buffer
+            # Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict(self.episode_done_indices)
 
 
