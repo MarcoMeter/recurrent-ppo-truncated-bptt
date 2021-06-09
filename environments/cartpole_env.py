@@ -1,4 +1,5 @@
 import gym
+import numpy as np
 
 class CartPole:
     def __init__(self, mask_velocity = False):
