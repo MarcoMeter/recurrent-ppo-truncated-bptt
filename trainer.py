@@ -12,22 +12,21 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter
 
 class PPOTrainer:
-    def __init__(self, config:dict, worker_id:int=0, run_id:str="run", device = "cpu") -> None:
+    def __init__(self, config:dict, run_id:str="run", device = "cpu") -> None:
         """Initializes all needed training components.
 
         Args:
             config (dict): Configuration and hyperparameters of the environment, trainer and model.
-            worker_id (int, optional): If a Unity environment is used, each one has to communicate via its distinct port. Defaults to 0.
             run_id (str, optional): A tag used to save Tensorboard Summaries. Defaults to "run".
             device (torch.device, optional): Determines the training device. Defaults to cpu.
         """
         # Process config
         self.config = config
+
         if "recurrence" in config:
             self.recurrence = config["recurrence"]
         else:
             self.recurrence = None
-        self.worker_id = worker_id
 
         # Determine training device
         self.device = device
@@ -133,7 +132,7 @@ class PPOTrainer:
                 self.buffer.values[:, t] = value.cpu().data.numpy()
 
                 # Sample actions
-                action = policy.sample()# change
+                action = policy.sample()
                 log_prob = policy.log_prob(action).cpu().data.numpy()
                 action = action.cpu().data.numpy()
 
@@ -223,7 +222,7 @@ class PPOTrainer:
         # Convert data to tensors
         sampled_return = samples['values'] + samples['advantages']
         # Repeat is necessary for multi-discrete action spaces
-        sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
+        sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages'])
 
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
@@ -273,16 +272,10 @@ class PPOTrainer:
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
         self.optimizer.step()
 
-        # Monitor training statistics
-        approx_kl_divergence = .5 * ((log_probs - samples['log_probs']) ** 2).mean()
-        clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
-
         return [policy_loss.cpu().data.numpy(),
                 vf_loss.cpu().data.numpy(),
                 loss.cpu().data.numpy(),
-                entropy_bonus.cpu().data.numpy(),
-                approx_kl_divergence.cpu().data.numpy(),
-                clip_fraction.cpu().data.numpy()]
+                entropy_bonus.cpu().data.numpy()]
 
     def masked_mean(self, tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
             """

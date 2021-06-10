@@ -48,7 +48,7 @@ def main():
         device = torch.device("cpu")
 
     # Init Trainer and Launch training
-    PPOTrainer(create_default_config(), worker_id=0, run_id=run_id, device=device).run_training()
+    PPOTrainer(create_default_config(), run_id=run_id, device=device).run_training()
 
 if __name__ == "__main__":
     main()
