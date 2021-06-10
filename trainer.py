@@ -179,7 +179,7 @@ class PPOTrainer:
 
         return episode_infos
 
-    def train_epochs(self, update_buffer:Buffer, learning_rate:float, clip_range:float, beta:float) -> list:
+    def train_epochs(self, learning_rate:float, clip_range:float, beta:float) -> list:
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
         Arguments:
@@ -199,10 +199,10 @@ class PPOTrainer:
             else:
                 mini_batch_generator = self.buffer.mini_batch_generator()
             for mini_batch in mini_batch_generator:
-                res = self.train_mini_batch(learning_rate=learning_rate,
-                                         clip_range=clip_range,
-                                         beta = beta,
-                                         samples=mini_batch)
+                res = self.train_mini_batch(samples=mini_batch,
+                                        learning_rate=learning_rate,
+                                        clip_range=clip_range,
+                                        beta = beta)
                 train_info.append(res)
         # Return the mean of the training statistics
         return train_info
@@ -302,18 +302,14 @@ class PPOTrainer:
             # Sample training data
             sampled_episode_info = self.sample_training_data()
 
-
             # Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict(self.episode_done_indices)
 
-
-            training_stats = self.train_epochs(None, self.config["learning_rate"], self.config["clip_range"], self.config["beta"])
+            training_stats = self.train_epochs(self.config["learning_rate"], self.config["clip_range"], self.config["beta"])
             training_stats = np.mean(training_stats, axis=0)
 
             # Store recent episode infos
             episode_infos.extend(sampled_episode_info)
-
-
 
             episode_result = self._process_episode_info(episode_infos)
 
