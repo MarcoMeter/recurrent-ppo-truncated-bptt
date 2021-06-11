@@ -221,7 +221,7 @@ class PPOTrainer:
         """
         # Convert data to tensors
         sampled_return = samples['values'] + samples['advantages']
-        # Repeat is necessary for multi-discrete action spaces
+        # Normalize the sampled advantages
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages'])
 
         # Retrieve sampled recurrent cell states to feed the model
@@ -343,8 +343,7 @@ class PPOTrainer:
                     continue
                 if key == "success":
                     # This concerns the SimpleMemoryTask only
-                    episode_result = [info[key] for info in episode_info]
-                    result[key + "_percent"] = np.sum(episode_result) / len(episode_result)
+                    result[key + "_percent"] = np.mean([info[key] for info in episode_info])
 
                 result[key + "_mean"] = np.mean([info[key] for info in episode_info])
                 result[key + "_min"] = np.min([info[key] for info in episode_info])

@@ -4,9 +4,7 @@ import torch
 
 def create_default_config() -> dict:
     return {
-        "env": "CartPoleMasked", # SimpleEnv, SimpleMemoryTask, RandomStartPositionEnv, CartPole,
-        # CartPoleMasked, UnityHallway, MinigridMemoryVector, MinigridMemoryVisual
-        "env_path": "./Hallway/UnityEnvironment",
+        "env": "CartPoleMasked", # PocMemoryEnv, CartPole, CartPoleMasked, MinigridMemoryVector, MinigridMemoryVisual
         "gamma": 0.99,
         "lamda": 0.95,
         "updates": 200,
