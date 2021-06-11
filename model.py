@@ -5,7 +5,7 @@ from torch.distributions import Categorical
 from torch.nn import functional as F
 
 class ActorCriticModel(nn.Module):
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape):
         """Model setup
 
         Arguments:
@@ -19,16 +19,7 @@ class ActorCriticModel(nn.Module):
         super().__init__()
         # Size of hidden layers
         self.hidden_size = config["hidden_layer_size"]
-        self.recurrence = recurrence
-        
-        # Set the activation function for most layers of the neural net
-        available_activ_fns = {
-            "elu": F.elu,
-            "leaky_relu": F.leaky_relu,
-            "relu": F.relu,
-            "swish": F.silu
-        }
-        self.activ_fn = available_activ_fns[config["activation"]]
+        self.recurrence = config["recurrence"]
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -129,9 +120,9 @@ class ActorCriticModel(nn.Module):
             vis_obs = torch.tensor(vis_obs, dtype=torch.float32, device=device)      # Convert vis_obs to tensor
             batch_size = vis_obs.size()[0]
             # Propagate input through the visual encoder
-            h = self.activ_fn(self.conv1(vis_obs))
-            h = self.activ_fn(self.conv2(h))
-            h = self.activ_fn(self.conv3(h))
+            h = F.relu(self.conv1(vis_obs))
+            h = F.relu(self.conv2(h))
+            h = F.relu(self.conv3(h))
             # Flatten the output of the convolutional layers
             h = h.reshape((batch_size, -1))
             if vec_obs is not None:
@@ -161,13 +152,13 @@ class ActorCriticModel(nn.Module):
                 h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
 
         # Feed hidden layer
-        h = self.activ_fn(self.lin_hidden(h))
+        h = F.relu(self.lin_hidden(h))
 
         # Decouple policy from value
         # Feed hidden layer (policy)
-        h_policy = self.activ_fn(self.lin_policy(h))
+        h_policy = F.relu(self.lin_policy(h))
         # Feed hidden layer (value function)
-        h_value = self.activ_fn(self.lin_value(h))
+        h_value = F.relu(self.lin_value(h))
         # Output: Value Function
         value = self.value(h_value).reshape(-1)
         # Output: Policy Branches
@@ -190,13 +181,7 @@ class ActorCriticModel(nn.Module):
         return int(np.prod(o.size()))
  
     def init_recurrent_cell_states(self, num_sequences, device):
-        """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
-        These states can be initialized in 4 ways:
-
-        - zero
-        - one
-        - mean (based on the recurrent cell states of the sampled training data)
-        - sample (based on the mean of all recurrent cell states of the sampled training data, the std is set to 0.01)
+        """Initializes the recurrent cell states (hxs, cxs) as zeros.
 
         Arugments:
             num_sequences {int}: The number of sequences determines the number of the to be generated initial recurrent cell states.
@@ -206,12 +191,7 @@ class ActorCriticModel(nn.Module):
             {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned using initial values.
         """
         hxs, cxs = None, None
-        if self.recurrence["hidden_state_init"] == "zero":
-            hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
-            if self.recurrence["layer_type"] == "lstm":
-                cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
-        elif self.recurrence["hidden_state_init"] == "one":
-            hxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
-            if self.recurrence["layer_type"] == "lstm":
-                cxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+        hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+        if self.recurrence["layer_type"] == "lstm":
+            cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
         return hxs, cxs
