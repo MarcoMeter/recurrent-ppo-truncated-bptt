@@ -311,11 +311,11 @@ class PPOTrainer:
             if "success_percent" in episode_result:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success = {:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success_percent"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(update_buffer["values"]), np.mean(update_buffer["advantages"]))
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
             else:
-                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f}".format(
-                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2])
+                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
+                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
             print(result)
     
     @staticmethod
