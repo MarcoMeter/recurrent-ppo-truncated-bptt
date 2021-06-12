@@ -27,18 +27,17 @@ class PPOTrainer:
         # Init dummy env and retrieve action and obs spaces
         print("Step 1: Init dummy environment")
         dummy_env = create_env(self.config["env"])
-        visual_observation_space = dummy_env.visual_observation_space
-        vector_observation_space = dummy_env.vector_observation_space
+        observation_space = dummy_env.observation_space
         action_space_shape = (dummy_env.action_space.n,)
         dummy_env.close()
 
         # Init buffer
         print("Step 2: Init buffer")
-        self.buffer = Buffer(self.config, visual_observation_space, vector_observation_space, self.device)
+        self.buffer = Buffer(self.config, observation_space, self.device)
 
         # Init model
         print("Step 3: Init model and optimizer")
-        self.model = ActorCriticModel(self.config, visual_observation_space, vector_observation_space, action_space_shape).to(self.device)
+        self.model = ActorCriticModel(self.config, observation_space, action_space_shape).to(self.device)
         self.model.train()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.config["learning_rate"])
 
@@ -46,15 +45,8 @@ class PPOTrainer:
         print("Step 4: Init environment workers")
         self.workers = [Worker(self.config["env"]) for w in range(self.config["n_workers"])]
 
-        # Setup observation placeholders    
-        if visual_observation_space is not None:
-            self.vis_obs = np.zeros((self.config["n_workers"],) + visual_observation_space.shape, dtype=np.float32)
-        else:
-            self.vis_obs = None
-        if vector_observation_space is not None:
-            self.vec_obs = np.zeros((self.config["n_workers"],) + vector_observation_space, dtype=np.float32)
-        else:
-            self.vec_obs = None
+        # Setup observation placeholder   
+        self.obs = np.zeros((self.config["n_workers"],) + observation_space.shape, dtype=np.float32)
 
         # Setup initial recurrent cell states (LSTM: tuple(tensor, tensor) or GRU: tensor)
         hxs, cxs = self.model.init_recurrent_cell_states(self.config["n_workers"], self.device)
@@ -68,12 +60,9 @@ class PPOTrainer:
         for worker in self.workers:
             worker.child.send(("reset", None))
         # Grab initial observations and store them in their respective placeholders
-        for i, worker in enumerate(self.workers):
-            vis_obs, vec_obs = worker.child.recv()
-            if self.vis_obs is not None:
-                self.vis_obs[i] = vis_obs
-            if self.vec_obs is not None:
-                self.vec_obs[i] = vec_obs
+        for w, worker in enumerate(self.workers):
+            obs = worker.child.recv()
+            self.obs[w] = obs
 
     def run_training(self):
         """Runs the entire training logic from sampling data to optimizing the model.
@@ -124,10 +113,7 @@ class PPOTrainer:
             # Gradients can be omitted for sampling data
             with torch.no_grad():
                 # Save the initial observations and hidden states
-                if self.vis_obs is not None:
-                    self.buffer.vis_obs[:, t] = self.vis_obs
-                if self.vec_obs is not None:
-                    self.buffer.vec_obs[:, t] = self.vec_obs
+                self.buffer.obs[:, t] = self.obs
                 # Store recurrent cell states inside the buffer
                 if self.recurrence["layer_type"] == "gru":
                     self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
@@ -136,7 +122,7 @@ class PPOTrainer:
                     self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
 
                 # Forward the model to retrieve the policy, the states' value and the recurrent cell states
-                policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, self.device)
+                policy, value, self.recurrent_cell = self.model(self.obs, self.recurrent_cell, self.device)
                 self.buffer.values[:, t] = value.cpu().data.numpy()
 
                 # Sample actions
@@ -152,7 +138,7 @@ class PPOTrainer:
 
             # Retrieve step results from the environments
             for w, worker in enumerate(self.workers):
-                vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
+                obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
@@ -161,7 +147,7 @@ class PPOTrainer:
                     # Reset agent (potential interface for providing reset parameters)
                     worker.child.send(("reset", None))
                     # Get data from reset
-                    vis_obs, vec_obs = worker.child.recv()
+                    obs = worker.child.recv()
                     # Reset recurrent cell states
                     hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
                     if self.recurrence["layer_type"] == "gru":
@@ -170,13 +156,10 @@ class PPOTrainer:
                         self.recurrent_cell[0][:, w] = hxs
                         self.recurrent_cell[1][:, w] = cxs
                 # Store latest observations
-                if self.vis_obs is not None:
-                    self.vis_obs[w] = vis_obs
-                if self.vec_obs is not None:
-                    self.vec_obs[w] = vec_obs
+                self.obs[w] = obs
                             
         # Calculate advantages
-        _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, self.device)
+        _, last_value, _ = self.model(self.obs, self.recurrent_cell, self.device)
         self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.config["gamma"], self.config["lamda"])
 
         return episode_infos
@@ -233,8 +216,7 @@ class PPOTrainer:
         sampled_normalized_advantage = (samples['advantages'] - samples['advantages'].mean()) / (samples['advantages'].std() + 1e-8)
 
         # Forward model
-        policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
-                                    samples['vec_obs'] if self.vec_obs is not None else None,
+        policy, value, _ = self.model(samples['obs'],
                                     recurrent_cell,
                                     self.device,
                                     self.recurrence["sequence_length"])

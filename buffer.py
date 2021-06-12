@@ -5,12 +5,11 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, config, visual_observation_space, vector_observation_space, device):
+    def __init__(self, config, observation_space, device):
         """
         Arguments:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
-            visual_observation_space {Box} -- Visual observation if available, else None
-            vector_observation_space {tuple} -- Vector observation space if available, else None
+            observation_space {Box} -- The observation space of the agent
             device {torch.device} -- The device that will be used for training/storing single mini batches
         """
         self.device = device
@@ -24,14 +23,7 @@ class Buffer():
         self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.int32)
         self.dones = np.zeros((self.n_workers, self.worker_steps), dtype=np.bool)
-        if visual_observation_space is not None:
-            self.vis_obs = np.zeros((self.n_workers, self.worker_steps) + visual_observation_space.shape, dtype=np.float32)
-        else:
-            self.vis_obs = None
-        if vector_observation_space is not None:
-            self.vec_obs = np.zeros((self.n_workers, self.worker_steps,) + vector_observation_space, dtype=np.float32)
-        else:
-            self.vec_obs = None
+        self.obs = np.zeros((self.n_workers, self.worker_steps) + observation_space.shape, dtype=np.float32)
         self.hxs = np.zeros((self.n_workers, self.worker_steps, self.recurrence["hidden_state_size"]), dtype=np.float32)
         self.cxs = np.zeros((self.n_workers, self.worker_steps, self.recurrence["hidden_state_size"]), dtype=np.float32)
         self.log_probs = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
@@ -52,16 +44,11 @@ class Buffer():
             'values': self.values,
             'log_probs': self.log_probs,
             'advantages': self.advantages,
+            'obs': self.obs,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
             'loss_mask': np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
         }
-
-    	# Add available observations to the dictionary
-        if self.vis_obs is not None:
-            samples['vis_obs'] = self.vis_obs
-        if self.vec_obs is not None:
-            samples['vec_obs'] = self.vec_obs
 
         max_sequence_length = 1
         # Add collected recurrent cell states to the dictionary

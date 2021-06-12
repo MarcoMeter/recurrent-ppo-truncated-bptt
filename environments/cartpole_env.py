@@ -11,31 +11,27 @@ class CartPole:
             self._obs_mask =  np.array([1, 0, 1, 0], dtype=np.float32)
 
     @property
-    def vector_observation_space(self):
-        return self._env.observation_space.shape
-
-    @property
-    def visual_observation_space(self):
-        return None
-
+    def observation_space(self):
+        return self._env.observation_space
+    
     @property
     def action_space(self):
         return self._env.action_space
 
     def reset(self):
         self._rewards = []
-        vec_obs = self._env.reset()
-        return None, vec_obs * self._obs_mask
+        obs = self._env.reset()
+        return obs * self._obs_mask
 
     def step(self, action):
-        vec_obs, reward, done, info = self._env.step(action)
+        obs, reward, done, info = self._env.step(action)
         self._rewards.append(reward)
         if done:
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards)}
         else:
             info = None
-        return None, vec_obs * self._obs_mask, reward / 100.0, done, info
+        return obs * self._obs_mask, reward / 100.0, done, info
 
     def close(self):
         self._env.close()
