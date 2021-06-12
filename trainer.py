@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import time
 import os
-import copy
 from torch import optim
 from buffer import Buffer
 from model import ActorCriticModel
@@ -12,7 +11,7 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter
 
 class PPOTrainer:
-    def __init__(self, config:dict, run_id:str="run", device = "cpu") -> None:
+    def __init__(self, config:dict, run_id:str="run", device="cpu") -> None:
         """Initializes all needed training components.
 
         Args:
@@ -20,15 +19,10 @@ class PPOTrainer:
             run_id (str, optional): A tag used to save Tensorboard Summaries. Defaults to "run".
             device (torch.device, optional): Determines the training device. Defaults to cpu.
         """
-        # Process config
+        # Set variables
         self.config = config
-
-        if "recurrence" in config:
-            self.recurrence = config["recurrence"]
-        else:
-            self.recurrence = None
-
-        # Determine training device
+        self.recurrence = config["recurrence"]
+        # Training device
         self.device = device
 
         # Init dummy env and retrieve action and obs spaces
@@ -39,8 +33,8 @@ class PPOTrainer:
         self.action_space_shape = (dummy_env.action_space.n,)
         dummy_env.close()
 
-        # Init agent buffers
-        print("Step 2: Init agent buffers")
+        # Init buffer
+        print("Step 2: Init buffer")
         self.buffer = Buffer(
             self.config["n_workers"], self.config["worker_steps"], self.config["n_mini_batch"],
             visual_observation_space, vector_observation_space,
@@ -49,13 +43,13 @@ class PPOTrainer:
 
         # Init model
         print("Step 3: Init model and optimizer")
-        self.model = ActorCriticModel(self.config, visual_observation_space, vector_observation_space, self.action_space_shape, self.recurrence).to(self.device)
+        self.model = ActorCriticModel(self.config, visual_observation_space, vector_observation_space, self.action_space_shape).to(self.device)
         self.model.train()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.config["learning_rate"])
 
         # Init workers
         print("Step 4: Init environment workers")
-        self.workers = [Worker(self.config["env"], self.config["env_path"], 200 + w) for w in range(self.config["n_workers"])]
+        self.workers = [Worker(self.config["env"]) for w in range(self.config["n_workers"])]
 
         # Setup observation placeholders    
         if visual_observation_space is not None:
@@ -221,7 +215,7 @@ class PPOTrainer:
         """
         # Convert data to tensors
         sampled_return = samples['values'] + samples['advantages']
-        # Normalize the sampled advantages
+        # Repeat is necessary for multi-discrete action spaces
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages'])
 
         # Retrieve sampled recurrent cell states to feed the model
@@ -317,11 +311,11 @@ class PPOTrainer:
             if "success_percent" in episode_result:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success = {:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success_percent"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(update_buffer["values"]), np.mean(update_buffer["advantages"]))
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
             else:
-                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f}".format(
-                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2])
+                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
+                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
             print(result)
     
     @staticmethod
@@ -343,7 +337,8 @@ class PPOTrainer:
                     continue
                 if key == "success":
                     # This concerns the SimpleMemoryTask only
-                    result[key + "_percent"] = np.mean([info[key] for info in episode_info])
+                    episode_result = [info[key] for info in episode_info]
+                    result[key + "_percent"] = np.sum(episode_result) / len(episode_result)
 
                 result[key + "_mean"] = np.mean([info[key] for info in episode_info])
                 result[key + "_min"] = np.min([info[key] for info in episode_info])
