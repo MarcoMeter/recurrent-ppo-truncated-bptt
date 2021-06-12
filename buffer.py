@@ -66,7 +66,8 @@ class Buffer():
             last_value = self.values[:, t]
 
     def prepare_batch_dict(self, episode_done_indices):
-        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, the data is split into episodes or sequences beforehand.
+        """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
+        the data is split into episodes or sequences beforehand.
         
         Arguments:
             episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
@@ -116,7 +117,7 @@ class Buffer():
                                 sequences.append(episode[start:end])
                             max_sequence_length = self.sequence_length
                         else:
-                            # If the sequence length is not set to a proper value, sequences will be based on episodes
+                            # If the sequence length is not set to a proper value, sequences will be based on whole episodes
                             sequences.append(episode)
                             max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
                 
@@ -129,14 +130,14 @@ class Buffer():
                 samples[key] = np.stack(sequences, axis=0)
 
                 if (key == "hxs" or key == "cxs"):
-                    # Select the very first recurrent cell state of a sequence and add it to the samples
+                    # Select only the very first recurrent cell state of a sequence and add it to the samples
                     samples[key] = samples[key][:, 0]
 
-        # Store important information
+        # Store important information concerning the sequences
         self.num_sequences = len(samples["values"])
         self.actual_sequence_length = max_sequence_length
         
-        # Flatten all samples
+        # Flatten all samples and convert them to a tensor
         self.samples_flat = {}
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
@@ -165,45 +166,27 @@ class Buffer():
         if len(sequence.shape) > 1:
             # Case: pad multi-dimensional array like visual observation
             padding = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
-            # padding = np.full(((delta_length,) + sequence.shape[1:]), sequence[0], dtype=sequence.dtype) # experimental
         else:
             padding = np.zeros(delta_length, dtype=sequence.dtype)
-            # padding = np.full(delta_length, sequence[0], dtype=sequence.dtype) # experimental
         # Concatenate the zeros to the sequence
         return np.concatenate((sequence, padding), axis=0)
 
-    def mini_batch_generator(self):
-        """A generator that returns a dictionary containing the data of a whole minibatch.
-        This mini batch is completely shuffled.
-
-        Yields:
-            {dict} -- Mini batch data for training
-        """
-        # Prepare indices (shuffle)
-        indices = torch.randperm(self.batch_size)
-        for start in range(0, self.batch_size, self.mini_batch_size):
-            # Compose mini batches
-            end = start + self.mini_batch_size
-            mini_batch_indices = indices[start: end]
-            mini_batch = {}
-            for key, value in self.samples_flat.items():
-                mini_batch[key] = value[mini_batch_indices].to(self.device)
-            yield mini_batch
-
     def recurrent_mini_batch_generator(self):
-        """A recurrent generator that returns a dictionary containing the data of a whole minibatch.
-        In comparison to the none-recurrent one, this generator maintains the sequences of the workers' experience trajectories.
+        """A recurrent generator that returns a dictionary providing training data arranged in mini batches.
+        This generator shuffles the data by sequences.
 
         Yields:
             {dict} -- Mini batch data for training
         """
         # Determine the number of sequences per mini batch
         num_sequences_per_batch = self.num_sequences // self.num_mini_batches
-        num_sequences_per_batch = [num_sequences_per_batch] * self.num_mini_batches # Arrange a list that determines the sequence count for each mini batch
+        # Arrange a list that determines the sequence count for each mini batch
+        num_sequences_per_batch = [num_sequences_per_batch] * self.num_mini_batches
         remainder = self.num_sequences % self.num_mini_batches
         for i in range(remainder):
-            num_sequences_per_batch[i] += 1 # Add the remainder if the sequence count and the number of mini batches do not share a common divider
-        # Prepare indices, but only shuffle the sequence indices and not the entire batch to ensure that sequences are maintained as a whole.
+            # Add the remainder if the sequence count and the number of mini batches do not share a common divider
+            num_sequences_per_batch[i] += 1
+        # Prepare indices, but only shuffle the sequence indices and not the entire batch.
         indices = np.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
         sequence_indices = torch.randperm(self.num_sequences)
         # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
@@ -218,7 +201,7 @@ class Buffer():
                 if key != "hxs" and key != "cxs":
                     mini_batch[key] = value[mini_batch_indices].to(self.device)
                 else:
-                    # Collect recurrent cell states
+                    # Collect only the recurrent cell states that are at the beginning of a sequence
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
             start = end
             yield mini_batch

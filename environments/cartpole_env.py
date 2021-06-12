@@ -4,7 +4,11 @@ import numpy as np
 class CartPole:
     def __init__(self, mask_velocity = False):
         self._env = gym.make("CartPole-v0")
-        self._obs_mask = np.ones(self._env.observation_space.shape[0], dtype=np.float32) if not mask_velocity else np.array([1, 0, 1, 0], dtype=np.float32)
+        # Whether to make CartPole partial observable by masking out the velocity.
+        if not mask_velocity:
+            self._obs_mask = np.ones(4, dtype=np.float32)
+        else:
+            self._obs_mask =  np.array([1, 0, 1, 0], dtype=np.float32)
 
     @property
     def vector_observation_space(self):

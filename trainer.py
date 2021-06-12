@@ -101,7 +101,8 @@ class PPOTrainer:
             list: list of results of completed episodes.
         """
         episode_infos = []
-        # Save the index of a completed episode, which is needed later on to seperate the data into episodes and sequences of fixed length
+        # Save the index of a completed episode, which is needed later on to 
+        # split the data into episodes and sequences of fixed length
         self.episode_done_indices = [[] for w in range(self.config["n_workers"])]
 
         # Sample actions from the model and collect experiences for training
@@ -121,7 +122,7 @@ class PPOTrainer:
                         self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
                         self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
 
-                # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
+                # Forward the model to retrieve the policy, the states' value and the recurrent cell states
                 policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, self.device)
                 self.buffer.values[:, t] = value.cpu().data.numpy()
 
@@ -129,8 +130,6 @@ class PPOTrainer:
                 action = policy.sample()
                 log_prob = policy.log_prob(action).cpu().data.numpy()
                 action = action.cpu().data.numpy()
-
-
                 self.buffer.actions[:, t] = action
                 self.buffer.log_probs[:, t] = log_prob
 
@@ -141,10 +140,6 @@ class PPOTrainer:
             # Retrieve results
             for w, worker in enumerate(self.workers):
                 vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
-                if self.vis_obs is not None:
-                    self.vis_obs[w] = vis_obs
-                if self.vec_obs is not None:
-                    self.vec_obs[w] = vec_obs
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
@@ -154,10 +149,6 @@ class PPOTrainer:
                     worker.child.send(("reset", None))
                     # Get data from reset
                     vis_obs, vec_obs = worker.child.recv()
-                    if self.vis_obs is not None:
-                        self.vis_obs[w] = vis_obs
-                    if self.vec_obs is not None:
-                        self.vec_obs[w] = vec_obs
                     # Reset recurrent cell states
                     if self.recurrence is not None:
                         hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
@@ -166,6 +157,11 @@ class PPOTrainer:
                         elif self.recurrence["layer_type"] == "lstm":
                             self.recurrent_cell[0][:, w] = hxs
                             self.recurrent_cell[1][:, w] = cxs
+                # Store latest observations
+                if self.vis_obs is not None:
+                    self.vis_obs[w] = vis_obs
+                if self.vec_obs is not None:
+                    self.vec_obs[w] = vec_obs
                             
         # Calculate advantages
         _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, self.device)
@@ -186,19 +182,14 @@ class PPOTrainer:
         train_info = []
 
         for _ in range(self.config["epochs"]):
-            # Retrieve the to be trained mini_batches via a generator
-            # Use the recurrent mini batch generator for training a recurrent policy
-            if self.recurrence is not None:
-                mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
-            else:
-                mini_batch_generator = self.buffer.mini_batch_generator()
+            # Retrieve the to be trained mini batches via a generator
+            mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             for mini_batch in mini_batch_generator:
                 res = self.train_mini_batch(samples=mini_batch,
                                         learning_rate=learning_rate,
                                         clip_range=clip_range,
                                         beta = beta)
                 train_info.append(res)
-        # Return the mean of the training statistics
         return train_info
 
     def train_mini_batch(self, samples:Buffer, learning_rate:float, clip_range:float, beta:float) -> list:
