@@ -5,65 +5,40 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device, mini_batch_device):
+    def __init__(self, config, visual_observation_space, vector_observation_space, device):
         """
         Arguments:
-            num_workers {int} -- Number of environments/agents to sample training data
-            worker_steps {int} -- Number of steps per environment/agent to sample training data
-            num_mini_batches {int} -- Number of mini batches that are used for each training epoch
+            config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
-            action_space_shape {tuple} -- Shape of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, fake recurrence {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
-            mini_batch_device {torch.device} -- The device that will be used for storing the whole batch of data. This should be CPU if not enough VRAM is available.
         """
         self.device = device
-        self.recurrence = recurrence
-        self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
-        self.num_workers = num_workers
-        self.worker_steps = worker_steps
-        self.num_mini_batches = num_mini_batches
-        self.batch_size = self.num_workers * self.worker_steps
-        self.mini_batch_size = self.batch_size // self.num_mini_batches
-        self.mini_batch_device = mini_batch_device
-        self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.actions = np.zeros((num_workers, worker_steps), dtype=np.int32)
-        self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
+        self.recurrence = config["recurrence"]
+        self.sequence_length = config["recurrence"]["sequence_length"]
+        self.n_workers = config["n_workers"]
+        self.worker_steps = config["worker_steps"]
+        self.n_mini_batches = config["n_mini_batch"]
+        self.batch_size = self.n_workers * self.worker_steps
+        self.mini_batch_size = self.batch_size // self.n_mini_batches
+        self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
+        self.actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.int32)
+        self.dones = np.zeros((self.n_workers, self.worker_steps), dtype=np.bool)
         if visual_observation_space is not None:
-            self.vis_obs = np.zeros((num_workers, worker_steps) + visual_observation_space.shape, dtype=np.float32)
+            self.vis_obs = np.zeros((self.n_workers, self.worker_steps) + visual_observation_space.shape, dtype=np.float32)
         else:
             self.vis_obs = None
         if vector_observation_space is not None:
-            self.vec_obs = np.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
+            self.vec_obs = np.zeros((self.n_workers, self.worker_steps,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
-        self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
-        self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
-        self.log_probs = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)
+        self.hxs = np.zeros((self.n_workers, self.worker_steps, self.recurrence["hidden_state_size"]), dtype=np.float32)
+        self.cxs = np.zeros((self.n_workers, self.worker_steps, self.recurrence["hidden_state_size"]), dtype=np.float32)
+        self.log_probs = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
+        self.values = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
+        self.advantages = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.num_sequences = 0
         self.actual_sequence_length = 0
-
-    def calc_advantages(self, last_value, gamma, lamda):
-        """Generalized advantage estimation (GAE)
-
-        Arguments:
-            last_value {numpy.ndarray} -- Value of the last agent's state
-            gamma {float} -- Discount factor
-            lamda {float} -- GAE regularization parameter
-        """
-        last_advantage = 0
-        for t in reversed(range(self.worker_steps)):
-            mask = 1.0 - self.dones[:, t] # mask value on a terminal state (i.e. done)
-            last_value = last_value * mask
-            last_advantage = last_advantage * mask
-            delta = self.rewards[:, t] + gamma * last_value - self.values[:, t]
-            last_advantage = delta + gamma * lamda * last_advantage
-            self.advantages[:, t] = last_advantage
-            last_value = self.values[:, t]
 
     def prepare_batch_dict(self, episode_done_indices):
         """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
@@ -79,7 +54,7 @@ class Buffer():
             'advantages': self.advantages,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            'loss_mask': np.ones((self.num_workers, self.worker_steps), dtype=np.float32)
+            'loss_mask': np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
         }
 
     	# Add available observations to the dictionary
@@ -89,49 +64,48 @@ class Buffer():
             samples['vec_obs'] = self.vec_obs
 
         max_sequence_length = 1
-        if self.recurrence is not None:
-            # Add collected recurrent cell states to the dictionary
-            samples["hxs"] =  self.hxs
-            if self.recurrence["layer_type"] == "lstm":
-                samples["cxs"] = self.cxs
+        # Add collected recurrent cell states to the dictionary
+        samples["hxs"] =  self.hxs
+        if self.recurrence["layer_type"] == "lstm":
+            samples["cxs"] = self.cxs
 
-            # If recurrence is used, split data into sequences and apply zero-padding
-            # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
-            for w in range(self.num_workers):
-                if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
-                    episode_done_indices[w].append(self.worker_steps - 1)
+        # If recurrence is used, split data into sequences and apply zero-padding
+        # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
+        for w in range(self.n_workers):
+            if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
+                episode_done_indices[w].append(self.worker_steps - 1)
+        
+        # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+        for key, value in samples.items():
+            sequences = []
+            for w in range(self.n_workers):
+                start_index = 0
+                for done_index in episode_done_indices[w]:
+                    # Split trajectory into episodes
+                    episode = value[w, start_index:done_index + 1]
+                    start_index = done_index + 1
+                    # Split episodes into sequences
+                    if self.sequence_length > 0:
+                        for start in range(0, len(episode), self.sequence_length):
+                            end = start + self.sequence_length
+                            sequences.append(episode[start:end])
+                        max_sequence_length = self.sequence_length
+                    else:
+                        # If the sequence length is not set to a proper value, sequences will be based on whole episodes
+                        sequences.append(episode)
+                        max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
             
-            # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
-            for key, value in samples.items():
-                sequences = []
-                for w in range(self.num_workers):
-                    start_index = 0
-                    for done_index in episode_done_indices[w]:
-                        # Split trajectory into episodes
-                        episode = value[w, start_index:done_index + 1]
-                        start_index = done_index + 1
-                        # Split episodes into sequences
-                        if self.sequence_length > 0:
-                            for start in range(0, len(episode), self.sequence_length):
-                                end = start + self.sequence_length
-                                sequences.append(episode[start:end])
-                            max_sequence_length = self.sequence_length
-                        else:
-                            # If the sequence length is not set to a proper value, sequences will be based on whole episodes
-                            sequences.append(episode)
-                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
-                
-                # Apply zero-padding to ensure that each episode has the same length
-                # Therfore we can train batches of episodes in parallel instead of one episode at a time
-                for i, sequence in enumerate(sequences):
-                    sequences[i] = self.pad_sequence(sequence, max_sequence_length)
+            # Apply zero-padding to ensure that each episode has the same length
+            # Therfore we can train batches of episodes in parallel instead of one episode at a time
+            for i, sequence in enumerate(sequences):
+                sequences[i] = self.pad_sequence(sequence, max_sequence_length)
 
-                # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                samples[key] = np.stack(sequences, axis=0)
+            # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
+            samples[key] = np.stack(sequences, axis=0)
 
-                if (key == "hxs" or key == "cxs"):
-                    # Select only the very first recurrent cell state of a sequence and add it to the samples
-                    samples[key] = samples[key][:, 0]
+            if (key == "hxs" or key == "cxs"):
+                # Select only the very first recurrent cell state of a sequence and add it to the samples
+                samples[key] = samples[key][:, 0]
 
         # Store important information concerning the sequences
         self.num_sequences = len(samples["values"])
@@ -142,7 +116,7 @@ class Buffer():
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.mini_batch_device)
+            self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.device)
 
     def pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
@@ -179,10 +153,10 @@ class Buffer():
             {dict} -- Mini batch data for training
         """
         # Determine the number of sequences per mini batch
-        num_sequences_per_batch = self.num_sequences // self.num_mini_batches
+        num_sequences_per_batch = self.num_sequences // self.n_mini_batches
         # Arrange a list that determines the sequence count for each mini batch
-        num_sequences_per_batch = [num_sequences_per_batch] * self.num_mini_batches
-        remainder = self.num_sequences % self.num_mini_batches
+        num_sequences_per_batch = [num_sequences_per_batch] * self.n_mini_batches
+        remainder = self.num_sequences % self.n_mini_batches
         for i in range(remainder):
             # Add the remainder if the sequence count and the number of mini batches do not share a common divider
             num_sequences_per_batch[i] += 1
@@ -205,3 +179,21 @@ class Buffer():
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
             start = end
             yield mini_batch
+
+    def calc_advantages(self, last_value, gamma, lamda):
+        """Generalized advantage estimation (GAE)
+
+        Arguments:
+            last_value {numpy.ndarray} -- Value of the last agent's state
+            gamma {float} -- Discount factor
+            lamda {float} -- GAE regularization parameter
+        """
+        last_advantage = 0
+        for t in reversed(range(self.worker_steps)):
+            mask = 1.0 - self.dones[:, t] # mask value on a terminal state (i.e. done)
+            last_value = last_value * mask
+            last_advantage = last_advantage * mask
+            delta = self.rewards[:, t] + gamma * last_value - self.values[:, t]
+            last_advantage = delta + gamma * lamda * last_advantage
+            self.advantages[:, t] = last_advantage
+            last_value = self.values[:, t]

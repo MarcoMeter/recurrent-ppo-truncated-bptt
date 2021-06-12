@@ -22,7 +22,6 @@ class PPOTrainer:
         # Set variables
         self.config = config
         self.recurrence = config["recurrence"]
-        # Training device
         self.device = device
 
         # Init dummy env and retrieve action and obs spaces
@@ -30,20 +29,16 @@ class PPOTrainer:
         dummy_env = create_env(self.config["env"])
         visual_observation_space = dummy_env.visual_observation_space
         vector_observation_space = dummy_env.vector_observation_space
-        self.action_space_shape = (dummy_env.action_space.n,)
+        action_space_shape = (dummy_env.action_space.n,)
         dummy_env.close()
 
         # Init buffer
         print("Step 2: Init buffer")
-        self.buffer = Buffer(
-            self.config["n_workers"], self.config["worker_steps"], self.config["n_mini_batch"],
-            visual_observation_space, vector_observation_space,
-            self.action_space_shape, self.recurrence,
-            self.device, self.device)
+        self.buffer = Buffer(self.config, visual_observation_space, vector_observation_space, self.device)
 
         # Init model
         print("Step 3: Init model and optimizer")
-        self.model = ActorCriticModel(self.config, visual_observation_space, vector_observation_space, self.action_space_shape).to(self.device)
+        self.model = ActorCriticModel(self.config, visual_observation_space, vector_observation_space, action_space_shape).to(self.device)
         self.model.train()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.config["learning_rate"])
 
@@ -62,14 +57,11 @@ class PPOTrainer:
             self.vec_obs = None
 
         # Setup initial recurrent cell states (LSTM: tuple(tensor, tensor) or GRU: tensor)
-        if self.recurrence is not None:
-            hxs, cxs = self.model.init_recurrent_cell_states(self.config["n_workers"], self.device)
-            if self.recurrence["layer_type"] == "gru":
-                self.recurrent_cell = hxs
-            elif self.recurrence["layer_type"] == "lstm":
-                self.recurrent_cell = (hxs, cxs)
-        else:
-            self.recurrent_cell = None
+        hxs, cxs = self.model.init_recurrent_cell_states(self.config["n_workers"], self.device)
+        if self.recurrence["layer_type"] == "gru":
+            self.recurrent_cell = hxs
+        elif self.recurrence["layer_type"] == "lstm":
+            self.recurrent_cell = (hxs, cxs)
 
         # Reset workers (i.e. environments)
         print("Step 5: Reset workers")
@@ -83,18 +75,40 @@ class PPOTrainer:
             if self.vec_obs is not None:
                 self.vec_obs[i] = vec_obs
 
-    @staticmethod
-    def _normalize(adv: np.ndarray):
-        """Normalizes the advantage
-        Arguments:
-            adv {numpy.ndarray} -- The to be normalized advantage
-        Returns:
-            (adv - adv.mean()) / (adv.std() + 1e-8) {np.ndarray} -- The normalized advantage
+    def run_training(self):
+        """Runs the entire training logic from sampling data to optimizing the model.
         """
-        return (adv - adv.mean()) / (adv.std() + 1e-8)
+        print("Step 6: Starting training")
+        # Store episode results for monitoring these statistics
+        episode_infos = deque(maxlen=100)
 
+        for update in range(self.config["updates"]):
+            # Sample training data
+            sampled_episode_info = self._sample_training_data()
 
-    def sample_training_data(self) -> list:
+            # Prepare the sampled data inside the buffer
+            self.buffer.prepare_batch_dict(self.episode_done_indices)
+
+            training_stats = self._train_epochs(self.config["learning_rate"], self.config["clip_range"], self.config["beta"])
+            training_stats = np.mean(training_stats, axis=0)
+
+            # Store recent episode infos
+            episode_infos.extend(sampled_episode_info)
+
+            episode_result = self._process_episode_info(episode_infos)
+
+            # Print training stats to console and Tensorboard
+            if "success_percent" in episode_result:
+                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success = {:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
+                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success_percent"],
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
+            else:
+                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
+                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
+            print(result)
+
+    def _sample_training_data(self) -> list:
         """Runs all n workers for n steps to sample training data.
 
         Returns:
@@ -115,12 +129,11 @@ class PPOTrainer:
                 if self.vec_obs is not None:
                     self.buffer.vec_obs[:, t] = self.vec_obs
                 # Store recurrent cell states inside the buffer
-                if self.recurrence is not None:
-                    if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
-                    elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
+                if self.recurrence["layer_type"] == "gru":
+                    self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
+                elif self.recurrence["layer_type"] == "lstm":
+                    self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
+                    self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
 
                 # Forward the model to retrieve the policy, the states' value and the recurrent cell states
                 policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, self.device)
@@ -133,11 +146,11 @@ class PPOTrainer:
                 self.buffer.actions[:, t] = action
                 self.buffer.log_probs[:, t] = log_prob
 
-            # Execute actions
+            # Send actions to the environments
             for w, worker in enumerate(self.workers):
                 worker.child.send(("step", self.buffer.actions[w, t]))
 
-            # Retrieve results
+            # Retrieve step results from the environments
             for w, worker in enumerate(self.workers):
                 vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
                 if info:
@@ -150,13 +163,12 @@ class PPOTrainer:
                     # Get data from reset
                     vis_obs, vec_obs = worker.child.recv()
                     # Reset recurrent cell states
-                    if self.recurrence is not None:
-                        hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
-                        if self.recurrence["layer_type"] == "gru":
-                            self.recurrent_cell[:, w] = hxs
-                        elif self.recurrence["layer_type"] == "lstm":
-                            self.recurrent_cell[0][:, w] = hxs
-                            self.recurrent_cell[1][:, w] = cxs
+                    hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
+                    if self.recurrence["layer_type"] == "gru":
+                        self.recurrent_cell[:, w] = hxs
+                    elif self.recurrence["layer_type"] == "lstm":
+                        self.recurrent_cell[0][:, w] = hxs
+                        self.recurrent_cell[1][:, w] = cxs
                 # Store latest observations
                 if self.vis_obs is not None:
                     self.vis_obs[w] = vis_obs
@@ -169,7 +181,7 @@ class PPOTrainer:
 
         return episode_infos
 
-    def train_epochs(self, learning_rate:float, clip_range:float, beta:float) -> list:
+    def _train_epochs(self, learning_rate:float, clip_range:float, beta:float) -> list:
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
         Arguments:
@@ -178,21 +190,20 @@ class PPOTrainer:
             beta {float} -- The current entropy bonus coefficient
             
         Returns:
-            {numpy.ndarray} -- Mean training statistics of one training epoch"""
+            {list} -- Training statistics of one training epoch"""
         train_info = []
-
         for _ in range(self.config["epochs"]):
             # Retrieve the to be trained mini batches via a generator
             mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             for mini_batch in mini_batch_generator:
-                res = self.train_mini_batch(samples=mini_batch,
+                res = self._train_mini_batch(samples=mini_batch,
                                         learning_rate=learning_rate,
                                         clip_range=clip_range,
                                         beta = beta)
                 train_info.append(res)
         return train_info
 
-    def train_mini_batch(self, samples:Buffer, learning_rate:float, clip_range:float, beta:float) -> list:
+    def _train_mini_batch(self, samples:Buffer, learning_rate:float, clip_range:float, beta:float) -> list:
         """Uses one mini batch to optimize the model.
 
         Args:
@@ -211,11 +222,10 @@ class PPOTrainer:
 
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
-        if self.recurrence is not None:
-            if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = samples["hxs"].unsqueeze(0)
-            elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+        if self.recurrence["layer_type"] == "gru":
+            recurrent_cell = samples["hxs"].unsqueeze(0)
+        elif self.recurrence["layer_type"] == "lstm":
+            recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
 
         # Calculate return
         sampled_return = samples['values'] + samples['advantages']
@@ -227,7 +237,7 @@ class PPOTrainer:
                                     samples['vec_obs'] if self.vec_obs is not None else None,
                                     recurrent_cell,
                                     self.device,
-                                    self.recurrence["sequence_length"] if self.recurrence is not None else 1)
+                                    self.recurrence["sequence_length"])
 
         # Compute surrogates
         log_probs = policy.log_prob(samples['actions'])
@@ -235,16 +245,16 @@ class PPOTrainer:
         surr1 = ratio * sampled_normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * sampled_normalized_advantage
         policy_loss = torch.min(surr1, surr2)
-        policy_loss = self.masked_mean(policy_loss, samples["loss_mask"])
+        policy_loss = PPOTrainer._masked_mean(policy_loss, samples["loss_mask"])
 
         # Value
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = self.masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = PPOTrainer._masked_mean(vf_loss, samples["loss_mask"])
         vf_loss = .25 * vf_loss
 
         # Entropy Bonus
-        entropy_bonus = self.masked_mean(policy.entropy(), samples["loss_mask"])
+        entropy_bonus = PPOTrainer._masked_mean(policy.entropy(), samples["loss_mask"])
 
         # Complete loss
         loss = -(policy_loss - vf_loss + beta * entropy_bonus)
@@ -262,7 +272,18 @@ class PPOTrainer:
                 loss.cpu().data.numpy(),
                 entropy_bonus.cpu().data.numpy()]
 
-    def masked_mean(self, tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    def _normalize(adv: np.ndarray):
+        """Normalizes the advantage
+        Arguments:
+            adv {numpy.ndarray} -- The to be normalized advantage
+        Returns:
+            (adv - adv.mean()) / (adv.std() + 1e-8) {np.ndarray} -- The normalized advantage
+        """
+        return (adv - adv.mean()) / (adv.std() + 1e-8)
+
+    @staticmethod
+    def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
             """
             Returns the mean of the tensor but ignores the values specified by the mask.
             This is used for masking out the padding of loss functions.
@@ -276,39 +297,6 @@ class PPOTrainer:
             """
             return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
 
-    def run_training(self):
-        """Runs the entire training logic from sampling data to optimizing the model.
-        """
-        print("Step 6: Starting training")
-        # Store episode results for monitoring these statistics
-        episode_infos = deque(maxlen=100)
-
-        for update in range(self.config["updates"]):
-            # Sample training data
-            sampled_episode_info = self.sample_training_data()
-
-            # Prepare the sampled data inside the buffer
-            self.buffer.prepare_batch_dict(self.episode_done_indices)
-
-            training_stats = self.train_epochs(self.config["learning_rate"], self.config["clip_range"], self.config["beta"])
-            training_stats = np.mean(training_stats, axis=0)
-
-            # Store recent episode infos
-            episode_infos.extend(sampled_episode_info)
-
-            episode_result = self._process_episode_info(episode_infos)
-
-            # Print training stats to console and Tensorboard
-            if "success_percent" in episode_result:
-                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success = {:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
-                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success_percent"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
-            else:
-                result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
-                    update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
-            print(result)
-    
     @staticmethod
     def _process_episode_info(episode_info:list) -> dict:
         """Extracts the mean and std of completed episodes. At minimum the episode length and the collected reward is available.
