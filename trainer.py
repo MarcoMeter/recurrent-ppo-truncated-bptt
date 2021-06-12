@@ -59,7 +59,7 @@ class PPOTrainer:
         print("Step 5: Reset workers")
         for worker in self.workers:
             worker.child.send(("reset", None))
-        # Grab initial observations and store them in their respective placeholders
+        # Grab initial observations and store them in their respective placeholder location
         for w, worker in enumerate(self.workers):
             obs = worker.child.recv()
             self.obs[w] = obs
@@ -233,13 +233,12 @@ class PPOTrainer:
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = PPOTrainer._masked_mean(vf_loss, samples["loss_mask"])
-        vf_loss = .25 * vf_loss
 
         # Entropy Bonus
         entropy_bonus = PPOTrainer._masked_mean(policy.entropy(), samples["loss_mask"])
 
         # Complete loss
-        loss = -(policy_loss - vf_loss + beta * entropy_bonus)
+        loss = -(policy_loss - self.config["value_loss_coefficient"] * vf_loss + beta * entropy_bonus)
 
         # Compute gradients
         for pg in self.optimizer.param_groups:

@@ -14,6 +14,7 @@ def create_default_config() -> dict:
         "n_mini_batch": 8,
         "learning_rate": 2.0e-4,
         "beta": 0.001,
+        "value_loss_coefficient": 0.25,
         "clip_range": 0.2,
         "hidden_layer_size": 512,
         "recurrence": 
