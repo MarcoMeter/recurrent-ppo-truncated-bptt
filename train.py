@@ -7,20 +7,20 @@ def create_default_config() -> dict:
         "env": "Minigrid", # PocMemoryEnv, CartPole, CartPoleMasked, Minigrid
         "gamma": 0.99,
         "lamda": 0.95,
-        "updates": 200,
+        "updates": 300,
         "epochs": 4,
         "n_workers": 16,
         "worker_steps": 256,
         "n_mini_batch": 8,
         "learning_rate": 2.0e-4,
-        "beta": 0.01,
+        "beta": 0.001,
         "clip_range": 0.2,
         "hidden_layer_size": 512,
         "recurrence": 
             {
             "sequence_length": 8,
             "hidden_state_size": 256,
-            "layer_type": "gru"
+            "layer_type": "lstm"
             }
     }
 
