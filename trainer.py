@@ -200,8 +200,9 @@ class PPOTrainer:
         """
         # Convert data to tensors
         sampled_return = samples['values'] + samples['advantages']
-        # Repeat is necessary for multi-discrete action spaces
-        sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages'])
+        # Normalize advantages
+        sampled_normalized_advantage = (samples['advantages'] - samples['advantages'].mean()
+                                        ) / (samples['advantages'].std() + 1e-8)
 
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
@@ -254,20 +255,10 @@ class PPOTrainer:
                 entropy_bonus.cpu().data.numpy()]
 
     @staticmethod
-    def _normalize(adv: np.ndarray):
-        """Normalizes the advantage
-        Arguments:
-            adv {numpy.ndarray} -- The to be normalized advantage
-        Returns:
-            (adv - adv.mean()) / (adv.std() + 1e-8) {np.ndarray} -- The normalized advantage
-        """
-        return (adv - adv.mean()) / (adv.std() + 1e-8)
-
-    @staticmethod
     def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
             """
             Returns the mean of the tensor but ignores the values specified by the mask.
-            This is used for masking out the padding of loss functions.
+            This is used for masking out the padding of the loss functions.
 
             Args:
                 tensor {Tensor}: The to be masked tensor
@@ -296,7 +287,7 @@ class PPOTrainer:
                 if key == "seed":
                     continue
                 if key == "success":
-                    # This concerns the SimpleMemoryTask only
+                    # This concerns the PocMemoryEnv only
                     episode_result = [info[key] for info in episode_info]
                     result[key + "_percent"] = np.sum(episode_result) / len(episode_result)
 
