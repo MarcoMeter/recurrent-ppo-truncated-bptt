@@ -31,7 +31,7 @@ def main():
         # Sample action
         action = policy.sample().cpu().data.numpy()
         # Step environemnt
-        obs, reward, done, info = env.step(action)
+        obs, reward, done, info = env.step(int(action))
         episode_rewards.append(reward)
     
     print("Episode length: " + str(info["length"]))
