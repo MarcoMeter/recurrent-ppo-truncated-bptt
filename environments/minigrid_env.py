@@ -1,5 +1,7 @@
-import numpy as np
 import gym
+import numpy as np
+import time
+
 from gym import spaces
 from gym_minigrid.wrappers import ViewSizeWrapper
 
@@ -47,6 +49,10 @@ class Minigrid:
         obs = np.swapaxes(obs, 0, 2)
         obs = np.swapaxes(obs, 2, 1)
         return obs, reward, done, info
+
+    def render(self):
+        self._env.render(tile_size = 96)
+        time.sleep(0.5)
 
     def close(self):
         self._env.close()
