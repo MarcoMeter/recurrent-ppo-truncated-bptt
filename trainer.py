@@ -1,7 +1,8 @@
 import numpy as np
+import os
+import pickle
 import torch
 import time
-import os
 from torch import optim
 from buffer import Buffer
 from model import ActorCriticModel
@@ -23,6 +24,7 @@ class PPOTrainer:
         self.config = config
         self.recurrence = config["recurrence"]
         self.device = device
+        self.run_id = run_id
 
         # Setup Tensorboard Summary Writer
         if not os.path.exists("./summaries"):
@@ -105,6 +107,12 @@ class PPOTrainer:
 
             # Write training statistics to tensorboard
             self._write_training_summary(update, training_stats, episode_result)
+
+        # Save model
+        if not os.path.exists("./models"):
+            os.makedirs("./models")
+        pickle.dump(self.model.state_dict(), open("./models/" + self.run_id + ".nn", "wb"))
+        print("Model saved to " + "./models/" + self.run_id + ".nn")
 
     def _sample_training_data(self) -> list:
         """Runs all n workers for n steps to sample training data.

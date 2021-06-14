@@ -45,7 +45,7 @@ def main():
     else:
         device = torch.device("cpu")
 
-    # Init Trainer and Launch training
+    # Initialize the PPO trainer and commence training
     PPOTrainer(create_default_config(), run_id=run_id, device=device).run_training()
 
 if __name__ == "__main__":
