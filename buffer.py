@@ -1,15 +1,15 @@
+from gym import spaces
 import torch
 import numpy as np
 
 class Buffer():
-    """The buffer stores and prepares the training data. It supports recurrent policies.
-    """
-    def __init__(self, config, observation_space, device):
+    """The buffer stores and prepares the training data. It supports recurrent policies. """
+    def __init__(self, config:dict, observation_space:spaces.Box, device:torch.device):
         """
         Args:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
-            observation_space {Box} -- The observation space of the agent
-            device {torch.device} -- The device that will be used for training/storing single mini batches
+            observation_space {spaces.Box} -- The observation space of the agent
+            device {torch.device} -- The device that will be used for training
         """
         # Setup members
         self.device = device
@@ -35,7 +35,7 @@ class Buffer():
         self.values = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.advantages = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
 
-    def prepare_batch_dict(self, episode_done_indices):
+    def prepare_batch_dict(self, episode_done_indices:list):
         """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
         the data is split into episodes or sequences beforehand.
         
@@ -43,14 +43,14 @@ class Buffer():
             episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
         # Supply training samples
         samples = {
-            'actions': self.actions,
-            'values': self.values,
-            'log_probs': self.log_probs,
-            'advantages': self.advantages,
-            'obs': self.obs,
+            "actions": self.actions,
+            "values": self.values,
+            "log_probs": self.log_probs,
+            "advantages": self.advantages,
+            "obs": self.obs,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            'loss_mask': np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
+            "loss_mask": np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
         }
         
         # Add collected recurrent cell states to the dictionary
@@ -112,11 +112,11 @@ class Buffer():
         """Pads a sequence to the target length using zeros.
 
         Args:
-            sequence {numpy.ndarray}: The to be padded array (i.e. sequence)
-            target_length {int}: The desired length of the sequence
+            sequence {np.ndarray} -- The to be padded array (i.e. sequence)
+            target_length {int} -- The desired length of the sequence
 
         Returns:
-            {numpy.ndarray}: Returns the padded sequence
+            {np.ndarray} -- Returns the padded sequence
         """
         # If a tensor is provided, convert it to a numpy array
         if isinstance(sequence, torch.Tensor):
@@ -170,11 +170,11 @@ class Buffer():
             start = end
             yield mini_batch
 
-    def calc_advantages(self, last_value, gamma, lamda):
+    def calc_advantages(self, last_value:np.ndarray, gamma:float, lamda:float):
         """Generalized advantage estimation (GAE)
 
         Arguments:
-            last_value {numpy.ndarray} -- Value of the last agent's state
+            last_value {np.ndarray} -- Value of the last agent"s state
             gamma {float} -- Discount factor
             lamda {float} -- GAE regularization parameter
         """

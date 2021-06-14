@@ -8,12 +8,10 @@ class ActorCriticModel(nn.Module):
     def __init__(self, config, observation_space, action_space_shape):
         """Model setup
 
-        Arguments:
+        Args:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             observation_space {box} -- Properties of the agent's observation space
             action_space_shape {tuple} -- Dimensions of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}
         """
         super().__init__()
         self.hidden_size = config["hidden_layer_size"]
@@ -22,8 +20,8 @@ class ActorCriticModel(nn.Module):
 
         # Observation encoder
         if len(self.observation_space_shape) > 1:
-            # Case: visual observation available
-            # Visual Encoder made of 3 convolutional layers
+            # Case: visual observation is available
+            # Visual encoder made of 3 convolutional layers
             self.conv1 = nn.Conv2d(observation_space.shape[0], 32, 8, 4,)
             self.conv2 = nn.Conv2d(32, 64, 4, 2, 0)
             self.conv3 = nn.Conv2d(64, 64, 3, 1, 0)
@@ -34,7 +32,7 @@ class ActorCriticModel(nn.Module):
             self.conv_out_size = self.get_conv_output(observation_space.shape)
             in_features_next_layer = self.conv_out_size
         else:
-            # Case: only vector observation is available
+            # Case: vector observation is available
             in_features_next_layer = observation_space.shape[0]
 
         # Recurrent Layer (GRU or LSTM)
@@ -44,9 +42,9 @@ class ActorCriticModel(nn.Module):
             self.recurrent_layer = nn.LSTM(in_features_next_layer, self.recurrence["hidden_state_size"], batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
-            if 'bias' in name:
+            if "bias" in name:
                 nn.init.constant_(param, 0)
-            elif 'weight' in name:
+            elif "weight" in name:
                 nn.init.orthogonal_(param, np.sqrt(2))
         # Hidden layer
         self.lin_hidden = nn.Linear(self.recurrence["hidden_state_size"], self.hidden_size)
@@ -70,22 +68,20 @@ class ActorCriticModel(nn.Module):
         self.value = nn.Linear(self.hidden_size, 1)
         nn.init.orthogonal_(self.value.weight, 1)
 
-    def forward(self, obs, recurrent_cell, device:torch.device, sequence_length:int=1):
+    def forward(self, obs:np.ndarray, recurrent_cell:torch.tensor, device:torch.device, sequence_length:int=1):
         """Forward pass of the model
 
-        Arguments:
-            obs {numpy.ndarray/torch.tensor} -- Batch of observations
-            recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
+        Args:
+            obs {np.ndarray/torch.tensor} -- Batch of observations
+            recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer
             device {torch.device} -- Current device
             sequence_length {int} -- Length of the fed sequences. Defaults to 1.
 
         Returns:
-            {list} -- Policy: List featuring categorical distributions respectively for each policy branch
+            {Categorical} -- Policy: Categorical distribution
             {torch.tensor} -- Value Function: Value
             {tuple} -- Recurrent cell
         """
-        h: torch.Tensor
-
         # Forward observation encoder
         if len(self.observation_space_shape) > 1:
             vis_obs = torch.tensor(obs, dtype=torch.float32, device=device)     # Convert vis_obs to tensor
@@ -132,10 +128,10 @@ class ActorCriticModel(nn.Module):
 
         return pi, value, recurrent_cell
 
-    def get_conv_output(self, shape):
+    def get_conv_output(self, shape:tuple):
         """Computes the output size of the convolutional layers by feeding a dummy tensor.
 
-        Arguments:
+        Args:
             shape {tuple} -- Input shape of the data feeding the first convolutional layer
 
         Returns:
@@ -146,15 +142,15 @@ class ActorCriticModel(nn.Module):
         o = self.conv3(o)
         return int(np.prod(o.size()))
  
-    def init_recurrent_cell_states(self, num_sequences, device):
+    def init_recurrent_cell_states(self, num_sequences:int, device:torch.device):
         """Initializes the recurrent cell states (hxs, cxs) as zeros.
 
-        Arugments:
-            num_sequences {int}: The number of sequences determines the number of the to be generated initial recurrent cell states.
-            device {torch.device}: Target device.
+        Args:
+            num_sequences {int} -- The number of sequences determines the number of the to be generated initial recurrent cell states.
+            device {torch.device} -- Target device.
 
         Returns:
-            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and
+            {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and
                      cell states are returned using initial values.
         """
         hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device).unsqueeze(0)

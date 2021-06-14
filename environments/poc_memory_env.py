@@ -41,7 +41,7 @@ class PocMemoryEnv():
 
 
     def reset(self, **kwargs):
-        """Resets the agent to a random start position and spawns the two possible goals randomly. """
+        """Resets the agent to a random start position and spawns the two possible goals randomly."""
         # Sample a random start position
         self._position = np.random.choice(self.possible_positions)
         self._rewards = []
