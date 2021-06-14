@@ -75,7 +75,7 @@ class PPOTrainer:
             # Sample training data
             sampled_episode_info = self._sample_training_data()
 
-            # Prepare the sampled data inside the buffer (splits data into sequence, calculates the advantage)
+            # Prepare the sampled data inside the buffer (splits data into sequences)
             self.buffer.prepare_batch_dict(self.episode_done_indices)
 
             # Train epochs
@@ -166,7 +166,7 @@ class PPOTrainer:
     def _train_epochs(self, learning_rate:float, clip_range:float, beta:float) -> list:
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
-        Arguments:
+        Args:
             learning_rate {float} -- The current learning rate
             clip_range {float} -- The current clip range
             beta {float} -- The current entropy bonus coefficient

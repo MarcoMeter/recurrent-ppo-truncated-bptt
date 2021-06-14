@@ -1,42 +1,45 @@
 import torch
 import numpy as np
-from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
     def __init__(self, config, observation_space, device):
         """
-        Arguments:
+        Args:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             observation_space {Box} -- The observation space of the agent
             device {torch.device} -- The device that will be used for training/storing single mini batches
         """
+        # Setup members
         self.device = device
-        self.recurrence = config["recurrence"]
-        self.sequence_length = config["recurrence"]["sequence_length"]
         self.n_workers = config["n_workers"]
         self.worker_steps = config["worker_steps"]
         self.n_mini_batches = config["n_mini_batch"]
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batches
+        hidden_state_size = config["recurrence"]["hidden_state_size"]
+        self.layer_type = config["recurrence"]["layer_type"]
+        self.sequence_length = config["recurrence"]["sequence_length"]
+        self.num_sequences = 0
+        self.actual_sequence_length = 0
+
+        # Initialize the buffer's data storage
         self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.int32)
         self.dones = np.zeros((self.n_workers, self.worker_steps), dtype=np.bool)
         self.obs = np.zeros((self.n_workers, self.worker_steps) + observation_space.shape, dtype=np.float32)
-        self.hxs = np.zeros((self.n_workers, self.worker_steps, self.recurrence["hidden_state_size"]), dtype=np.float32)
-        self.cxs = np.zeros((self.n_workers, self.worker_steps, self.recurrence["hidden_state_size"]), dtype=np.float32)
+        self.hxs = np.zeros((self.n_workers, self.worker_steps, hidden_state_size), dtype=np.float32)
+        self.cxs = np.zeros((self.n_workers, self.worker_steps, hidden_state_size), dtype=np.float32)
         self.log_probs = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.values = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.advantages = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
-        self.num_sequences = 0
-        self.actual_sequence_length = 0
 
     def prepare_batch_dict(self, episode_done_indices):
         """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
         the data is split into episodes or sequences beforehand.
         
-        Arguments:
+        Args:
             episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
         # Supply training samples
         samples = {
@@ -49,20 +52,20 @@ class Buffer():
             # This is only of significance while using recurrence.
             'loss_mask': np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
         }
-
-        max_sequence_length = 1
+        
         # Add collected recurrent cell states to the dictionary
         samples["hxs"] =  self.hxs
-        if self.recurrence["layer_type"] == "lstm":
+        if self.layer_type == "lstm":
             samples["cxs"] = self.cxs
 
-        # If recurrence is used, split data into sequences and apply zero-padding
+        # Split data into sequences and apply zero-padding
         # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
         for w in range(self.n_workers):
             if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                 episode_done_indices[w].append(self.worker_steps - 1)
         
-        # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+        # Split obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+        max_sequence_length = 1
         for key, value in samples.items():
             sequences = []
             for w in range(self.n_workers):
@@ -82,12 +85,12 @@ class Buffer():
                         sequences.append(episode)
                         max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
             
-            # Apply zero-padding to ensure that each episode has the same length
-            # Therfore we can train batches of episodes in parallel instead of one episode at a time
+            # Apply zero-padding to ensure that each sequence has the same length
+            # Therfore we can train batches of sequences in parallel instead of one episode at a time
             for i, sequence in enumerate(sequences):
                 sequences[i] = self.pad_sequence(sequence, max_sequence_length)
 
-            # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
+            # Stack sequences (target shape: (Sequence, Step, Data ...) and apply data to the samples dict
             samples[key] = np.stack(sequences, axis=0)
 
             if (key == "hxs" or key == "cxs"):
@@ -105,7 +108,7 @@ class Buffer():
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.device)
 
-    def pad_sequence(self, sequence, target_length):
+    def pad_sequence(self, sequence:np.ndarray, target_length:int):
         """Pads a sequence to the target length using zeros.
 
         Args:
@@ -125,7 +128,7 @@ class Buffer():
             return sequence
         # Construct array of zeros
         if len(sequence.shape) > 1:
-            # Case: pad multi-dimensional array like visual observation
+            # Case: pad multi-dimensional array (e.g. visual observation)
             padding = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
         else:
             padding = np.zeros(delta_length, dtype=sequence.dtype)
