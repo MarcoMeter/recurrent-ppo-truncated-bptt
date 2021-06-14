@@ -29,8 +29,9 @@ def main():
     # Command line arguments via docopt
     _USAGE = """
     Usage:
-        run.py [options]
-        run.py --help
+        train.py [options]
+        train.py --help
+    
     Options:
         --run-id=<path>            Specifies the tag for saving the tensorboard summary [default: run].
         --cpu                      Force training on CPU [default: False]

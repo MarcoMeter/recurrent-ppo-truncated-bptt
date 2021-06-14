@@ -24,6 +24,12 @@ class PPOTrainer:
         self.recurrence = config["recurrence"]
         self.device = device
 
+        # Setup Tensorboard Summary Writer
+        if not os.path.exists("./summaries"):
+            os.makedirs("./summaries")
+        timestamp = time.strftime("/%Y%m%d-%H%M%S" + "/")
+        self.writer = SummaryWriter("./summaries/" + run_id + timestamp)
+
         # Init dummy env and retrieve action and obs spaces
         print("Step 1: Init dummy environment")
         dummy_env = create_env(self.config["env"])
@@ -96,6 +102,9 @@ class PPOTrainer:
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
                     training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
             print(result)
+
+            # Write training statistics to tensorboard
+            self._write_training_summary(update, training_stats, episode_result)
 
     def _sample_training_data(self) -> list:
         """Runs all n workers for n steps to sample training data.
@@ -235,6 +244,20 @@ class PPOTrainer:
                 vf_loss.cpu().data.numpy(),
                 loss.cpu().data.numpy(),
                 entropy_bonus.cpu().data.numpy()]
+
+    def _write_training_summary(self, update, training_stats, episode_result):
+        """Writes to an event file based on the run-id argument."""
+        if episode_result:
+            for key in episode_result:
+                if "std" not in key:
+                    self.writer.add_scalar("episode/" + key, episode_result[key], update)
+        self.writer.add_scalar("losses/loss", training_stats[2], update)
+        self.writer.add_scalar("losses/policy_loss", training_stats[0], update)
+        self.writer.add_scalar("losses/value_loss", training_stats[1], update)
+        self.writer.add_scalar("losses/entropy", training_stats[3], update)
+        self.writer.add_scalar("training/sequence_length", self.buffer.actual_sequence_length, update)
+        self.writer.add_scalar("training/value_mean", np.mean(self.buffer.values), update)
+        self.writer.add_scalar("training/advantage_mean", np.mean(self.buffer.advantages), update)
 
     @staticmethod
     def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
