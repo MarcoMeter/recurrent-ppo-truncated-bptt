@@ -13,7 +13,7 @@ class ActorCriticModel(nn.Module):
             observation_space {box} -- Properties of the agent's observation space
             action_space_shape {tuple} -- Dimensions of the action space
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+                - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}
         """
         super().__init__()
         self.hidden_size = config["hidden_layer_size"]

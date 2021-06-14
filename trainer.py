@@ -68,22 +68,22 @@ class PPOTrainer:
         """Runs the entire training logic from sampling data to optimizing the model.
         """
         print("Step 6: Starting training")
-        # Store episode results for monitoring these statistics
+        # Store episode results for monitoring statistics
         episode_infos = deque(maxlen=100)
 
         for update in range(self.config["updates"]):
             # Sample training data
             sampled_episode_info = self._sample_training_data()
 
-            # Prepare the sampled data inside the buffer
+            # Prepare the sampled data inside the buffer (splits data into sequence, calculates the advantage)
             self.buffer.prepare_batch_dict(self.episode_done_indices)
 
+            # Train epochs
             training_stats = self._train_epochs(self.config["learning_rate"], self.config["clip_range"], self.config["beta"])
             training_stats = np.mean(training_stats, axis=0)
 
             # Store recent episode infos
             episode_infos.extend(sampled_episode_info)
-
             episode_result = self._process_episode_info(episode_infos)
 
             # Print training stats to console and Tensorboard
@@ -112,9 +112,8 @@ class PPOTrainer:
         for t in range(self.config["worker_steps"]):
             # Gradients can be omitted for sampling data
             with torch.no_grad():
-                # Save the initial observations and hidden states
+                # Save the initial observations and recurrentl cell states
                 self.buffer.obs[:, t] = self.obs
-                # Store recurrent cell states inside the buffer
                 if self.recurrence["layer_type"] == "gru":
                     self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
                 elif self.recurrence["layer_type"] == "lstm":
@@ -179,18 +178,14 @@ class PPOTrainer:
             # Retrieve the to be trained mini batches via a generator
             mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             for mini_batch in mini_batch_generator:
-                res = self._train_mini_batch(samples=mini_batch,
-                                        learning_rate=learning_rate,
-                                        clip_range=clip_range,
-                                        beta = beta)
-                train_info.append(res)
+                train_info.append(self._train_mini_batch(mini_batch, learning_rate, clip_range, beta))
         return train_info
 
-    def _train_mini_batch(self, samples:Buffer, learning_rate:float, clip_range:float, beta:float) -> list:
+    def _train_mini_batch(self, samples:dict, learning_rate:float, clip_range:float, beta:float) -> list:
         """Uses one mini batch to optimize the model.
 
         Args:
-            mini_batch (Buffer): The to be used mini batch data to optimize the model
+            mini_batch (dkict): The to be used mini batch data to optimize the model
             learning_rate (float): Current learning rate
             clip_range (float): Current clip range
             beta (float): Current entropy bonus coefficient
@@ -198,39 +193,26 @@ class PPOTrainer:
         Returns:
             list: list of trainig statistics (e.g. loss)
         """
-        # Convert data to tensors
-        sampled_return = samples['values'] + samples['advantages']
-        # Normalize advantages
-        sampled_normalized_advantage = (samples['advantages'] - samples['advantages'].mean()
-                                        ) / (samples['advantages'].std() + 1e-8)
-
         # Retrieve sampled recurrent cell states to feed the model
-        recurrent_cell = None
         if self.recurrence["layer_type"] == "gru":
             recurrent_cell = samples["hxs"].unsqueeze(0)
         elif self.recurrence["layer_type"] == "lstm":
             recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
 
-        # Calculate return
-        sampled_return = samples['values'] + samples['advantages']
-        # Normalize advantages
-        sampled_normalized_advantage = (samples['advantages'] - samples['advantages'].mean()) / (samples['advantages'].std() + 1e-8)
-
         # Forward model
-        policy, value, _ = self.model(samples['obs'],
-                                    recurrent_cell,
-                                    self.device,
-                                    self.recurrence["sequence_length"])
+        policy, value, _ = self.model(samples['obs'], recurrent_cell, self.device, self.recurrence["sequence_length"])
 
-        # Compute surrogates
+        # Compute policy surrogates to establish the policy loss
+        normalized_advantage = (samples['advantages'] - samples['advantages'].mean()) / (samples['advantages'].std() + 1e-8)
         log_probs = policy.log_prob(samples['actions'])
         ratio = torch.exp(log_probs - samples['log_probs'])
-        surr1 = ratio * sampled_normalized_advantage
-        surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * sampled_normalized_advantage
+        surr1 = ratio * normalized_advantage
+        surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
         policy_loss = PPOTrainer._masked_mean(policy_loss, samples["loss_mask"])
 
-        # Value
+        # Value  function loss
+        sampled_return = samples['values'] + samples['advantages']
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = PPOTrainer._masked_mean(vf_loss, samples["loss_mask"])
@@ -271,28 +253,21 @@ class PPOTrainer:
 
     @staticmethod
     def _process_episode_info(episode_info:list) -> dict:
-        """Extracts the mean and std of completed episodes. At minimum the episode length and the collected reward is available.
+        """Extracts the mean and std of completed episode statistics like length and total reward.
 
         Args:
             episode_info (list): list of dictionaries containing results of completed episodes during the sampling phase
 
         Returns:
-            dict: Processed episode results (computes the mean, std, min, max for most available keys)
+            dict: Processed episode results (computes the mean and std for most available keys)
         """
         result = {}
         if len(episode_info) > 0:
-            keys = episode_info[0].keys()
-            for key in keys:
-                # skip seed
-                if key == "seed":
-                    continue
+            for key in episode_info[0].keys():
                 if key == "success":
                     # This concerns the PocMemoryEnv only
                     episode_result = [info[key] for info in episode_info]
                     result[key + "_percent"] = np.sum(episode_result) / len(episode_result)
-
                 result[key + "_mean"] = np.mean([info[key] for info in episode_info])
-                result[key + "_min"] = np.min([info[key] for info in episode_info])
-                result[key + "_max"] = np.max([info[key] for info in episode_info])
                 result[key + "_std"] = np.std([info[key] for info in episode_info])
         return result
