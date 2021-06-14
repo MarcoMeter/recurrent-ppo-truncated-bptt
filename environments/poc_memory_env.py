@@ -1,6 +1,7 @@
 from gym.spaces import space
 import numpy as np
 from gym import spaces
+import time
 
 class PocMemoryEnv():
     """
@@ -125,6 +126,30 @@ class PocMemoryEnv():
         self._step_count += 1
 
         return obs, reward, done, info
+
+    def render(self, delay=2):
+        num_grids = 2 * int(1 / self._step_size) + 1
+        agent_grid = int(num_grids / 2 + self._position / self._step_size)
+
+        
+        print('######' * num_grids, "#", sep="")
+        print('#     ' * num_grids, "#", sep="")
+        field = [*('#     ' * (agent_grid + 1))[:-3], *"x  ", *('#     ' * (num_grids - agent_grid - 1)), "#"]
+
+        if field[3] != "x":
+            field[3] = "+" if self._goals[0] > 0 else "-"
+        if field[-4] != "x":
+            field[-4] = "+" if self._goals[1] > 0 else "-"
+
+        print("".join(field))
+        print('#     ' * num_grids, "#", sep="")
+        print('######' * num_grids, "#", sep="")
+        
+        print("Goals are shown: ", self._num_show_steps > self._step_count)
+
+        time.sleep(delay)
+
+        
 
     def close(self):
         pass
