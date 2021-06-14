@@ -129,12 +129,12 @@ class PocMemoryEnv():
 
     def render(self, delay=2):
         num_grids = 2 * int(1 / self._step_size) + 1
-        agent_grid = int(num_grids / 2 + self._position / self._step_size)
+        agent_grid = int(num_grids / 2 + self._position / self._step_size) + 1
 
         
         print('######' * num_grids, "#", sep="")
         print('#     ' * num_grids, "#", sep="")
-        field = [*('#     ' * (agent_grid + 1))[:-3], *"x  ", *('#     ' * (num_grids - agent_grid - 1)), "#"]
+        field = [*('#     ' * agent_grid)[:-3], *"x  ", *('#     ' * (num_grids - agent_grid)), "#"]
 
         if field[3] != "x":
             field[3] = "+" if self._goals[0] > 0 else "-"
