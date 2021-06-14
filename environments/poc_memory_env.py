@@ -4,28 +4,30 @@ from gym import spaces
 
 class PocMemoryEnv():
     """
-    description # TODO
+    Proof of Concept Memory Environment
+
+    This environment is intended to assess whether the underlying recurrent policy is working or not.
+    The environment is based on a one dimensional grid where the agent can move left or right.
+    At both ends, a goal is spawned that is either punishing or rewarding.
+    During the very first two steps, the agent gets to know which goal leads to a positive or negative reward.
+    Afterwards, this information is hidden in the agent's observation.
+    The last value of the agent's observation is its current position inside the environment.
+    Optionally and to increase the difficulty of the task, the agent's position can be frozen until the goal information is hidden.
+    To further challenge the agent, the step_size can be decreased.
     """
-    def __init__(self, step_size = 0.2, glob = False, freeze_agent = False):
+    def __init__(self, step_size:float=0.2, glob:bool=False, freeze:bool=False):
         """
-        Arguments:
-          env {SimpleMemoryTask} - environment
-          step_size {float} -- step size of the agent
-          glob {boolean} -- global random positions
-          freeze_agent {boolean} -- freezes agent until goal positions become invisible
+        Args:
+          step_size {float} -- Step size of the agent. Defaults to 0.2.
+          glob {bool} -- Whether to sample starting positions across the entire space. Defaults to False.
+          freeze_agent {bool} -- Whether to freeze the agent's position until goal positions are hidden. Defaults to False.
         """
-        self._action_space = spaces.Discrete(2)
-        self.freeze_agent = freeze_agent
-        self._time_penalty = 0.1
+        self.freeze = freeze
         self._step_size = step_size
         self._min_steps = int(1.0 / self._step_size) + 1
-        self._num_show_steps = 2    # this should determine for how long the goal is visible
-        self._observation_space = spaces.Box(
-                low = 0,
-                high = 1.0,
-                shape = (3,),
-                dtype = np.float32)
-
+        self._time_penalty = 0.1    
+        self._num_show_steps = 2    # this should determine for how many steps the goal is visible
+        
         # Create an array with possible positions
         # Valid local positions are two ticks away from 0.0 and between -0.4 and 0.4
         # Valid global positions are between -1 + step_size and 1 - step_size
@@ -39,23 +41,32 @@ class PocMemoryEnv():
 
 
     def reset(self, **kwargs):
-        """ Let the agent start from a random start position. """
-        # sample a random position as starting position
+        """Resets the agent to a random start position and spawns the two possible goals randomly. """
+        # Sample a random start position
         self._position = np.random.choice(self.possible_positions)
         self._rewards = []
         self._step_count = 0
         goals = np.asarray([-1.0, 1.0])
+        # Determine the goal
         self._goals = goals[np.random.permutation(2)]
         obs = np.asarray([self._goals[0], self._position, self._goals[1]])
         return obs
 
     @property
     def observation_space(self):
-        return self._observation_space
+        """
+        Returns:
+            {spaces.Box}: The agent observes its current position and the goal locations, which are masked eventually.
+        """
+        return spaces.Box(low = 0, high = 1.0, shape = (3,), dtype = np.float32)
 
     @property
     def action_space(self):
-        return self._action_space
+        """
+        Returns:
+            {spaces.Discrete}: The agent has two actions: going left or going right
+        """
+        return spaces.Discrete(2)
 
     def step(self, action):
         reward = 0.0
@@ -64,12 +75,12 @@ class PocMemoryEnv():
 
         if self._num_show_steps > self._step_count:
             # Execute action if agent is allowed to move
-            self._position += self._step_size * (1 - self.freeze_agent) if action == 1 else -self._step_size * (1 - self.freeze_agent)
+            self._position += self._step_size * (1 - self.freeze) if action == 1 else -self._step_size * (1 - self.freeze)
             self._position = np.round(self._position, 2)
 
             obs = np.asarray([self._goals[0], self._position, self._goals[1]])
 
-            if self.freeze_agent: # Check if agent is allowed to move
+            if self.freeze: # Check if agent is allowed to move
                 self._step_count += 1
                 self._rewards.append(reward)
                 return obs, reward, done, info
@@ -79,7 +90,7 @@ class PocMemoryEnv():
             self._position = np.round(self._position, 2)
             obs = np.asarray([0.0, self._position, 0.0]) # mask out goal information
 
-        # Determine reward and episode termination
+        # Determine the reward function and episode termination
         reward = 0.0
         done = False
         if self._position == -1.0:
