@@ -1,6 +1,6 @@
 def cartpole_masked_config():
     return {
-        "env": "CartPole",
+        "env": "CartPoleMasked",
         "gamma": 0.99,
         "lamda": 0.95,
         "updates": 100,
@@ -8,9 +8,9 @@ def cartpole_masked_config():
         "n_workers": 16,
         "worker_steps": 256,
         "n_mini_batch": 4,
-        "learning_rate": 1.0e-4,
-        "beta": 0.001,
-        "value_loss_coefficient": 0.1,
+        "learning_rate": 1.5e-4,
+        "beta": 0.0001,
+        "value_loss_coefficient": 0.2,
         "clip_range": 0.2,
         "hidden_layer_size": 128,
         "recurrence": 

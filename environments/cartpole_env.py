@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import time
 
 class CartPole:
     def __init__(self, mask_velocity = False):
@@ -32,6 +33,10 @@ class CartPole:
         else:
             info = None
         return obs * self._obs_mask, reward / 100.0, done, info
+
+    def render(self):
+        self._env.render()
+        time.sleep(0.033)
 
     def close(self):
         self._env.close()
