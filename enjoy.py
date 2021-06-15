@@ -9,11 +9,14 @@ def main():
     # Inference device
     device = torch.device("cpu")
 
+    # Get config
+    config = minigrid_config()
+
     # Instantiate environment
-    env = create_env("Minigrid")
+    env = create_env(config["env"])
 
     # Initialize model and load its parameters
-    model = ActorCriticModel(minigrid_config(), env.observation_space, (env.action_space.n,))
+    model = ActorCriticModel(config, env.observation_space, (env.action_space.n,))
     model.load_state_dict(pickle.load(open("./models/minigrid.nn", "rb")))
     model.to(device)
     model.eval()
@@ -21,7 +24,14 @@ def main():
     # Run and render episode
     done = False
     episode_rewards = []
-    recurrent_cell = model.init_recurrent_cell_states(1, device)
+
+    # Init recurrent cell
+    hxs, cxs = model.init_recurrent_cell_states(1, device)
+    if config["recurrence"]["layer_type"] == "gru":
+        recurrent_cell = hxs
+    elif config["recurrence"]["layer_type"] == "lstm":
+        recurrent_cell = (hxs, cxs)
+
     obs = env.reset()
     while not done:
         # Render environment
