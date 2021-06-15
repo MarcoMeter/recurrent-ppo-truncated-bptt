@@ -83,7 +83,7 @@ class PPOTrainer:
             sampled_episode_info = self._sample_training_data()
 
             # Prepare the sampled data inside the buffer (splits data into sequences)
-            self.buffer.prepare_batch_dict(self.episode_done_indices)
+            self.buffer.prepare_batch_dict()
 
             # Train epochs
             training_stats = self._train_epochs(self.config["learning_rate"], self.config["clip_range"], self.config["beta"])
@@ -120,10 +120,6 @@ class PPOTrainer:
             {list} -- list of results of completed episodes.
         """
         episode_infos = []
-        # Save the index of a completed episode, which is needed later on to 
-        # split the data into episodes and sequences of fixed length
-        self.episode_done_indices = [[] for w in range(self.config["n_workers"])]
-
         # Sample actions from the model and collect experiences for training
         for t in range(self.config["worker_steps"]):
             # Gradients can be omitted for sampling data
@@ -157,8 +153,6 @@ class PPOTrainer:
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
-                    # Save the index of a completed episode, which is needed later on to seperate the data into episodes and sequences of fixed length
-                    self.episode_done_indices[w].append(t)
                     # Reset agent (potential interface for providing reset parameters)
                     worker.child.send(("reset", None))
                     # Get data from reset

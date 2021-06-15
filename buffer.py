@@ -35,12 +35,10 @@ class Buffer():
         self.values = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.advantages = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
 
-    def prepare_batch_dict(self, episode_done_indices:list) -> None:
+    def prepare_batch_dict(self) -> None:
         """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
         the data is split into episodes or sequences beforehand.
-        
-        Args:
-            episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
+        """
         # Supply training samples
         samples = {
             "actions": self.actions,
@@ -59,8 +57,11 @@ class Buffer():
             samples["cxs"] = self.cxs
 
         # Split data into sequences and apply zero-padding
-        # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
+        # Retrieve the indices of dones as these are the last step of a whole episode
+        episode_done_indices = []
         for w in range(self.n_workers):
+            episode_done_indices.append(list(self.dones[w].nonzero()[0]))
+            # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
             if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                 episode_done_indices[w].append(self.worker_steps - 1)
         
