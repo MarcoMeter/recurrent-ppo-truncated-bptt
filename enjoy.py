@@ -1,23 +1,35 @@
 import numpy as np
 import pickle
 import torch
-from configs import cartpole_masked_config, minigrid_config, poc_memory_env_config
+from docopt import docopt
 from model import ActorCriticModel
 from utils import create_env
 
 def main():
+    # Command line arguments via docopt
+    _USAGE = """
+    Usage:
+        enjoy.py [options]
+        enjoy.py --help
+    
+    Options:
+        --model=<path>              Specifies the path to the trained model [default: ./models/minigrid.nn].
+    """
+    options = docopt(_USAGE)
+    model_path = options["--model"]
+
     # Inference device
     device = torch.device("cpu")
 
-    # Get config
-    config = minigrid_config()
+    # Load Model and Config
+    state_dict, config = pickle.load(open(model_path, "rb"))
 
     # Instantiate environment
     env = create_env(config["env"])
 
     # Initialize model and load its parameters
     model = ActorCriticModel(config, env.observation_space, (env.action_space.n,))
-    model.load_state_dict(pickle.load(open("./models/minigrid.nn", "rb")))
+    model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
     
