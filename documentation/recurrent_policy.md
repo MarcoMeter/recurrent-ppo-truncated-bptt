@@ -2,11 +2,25 @@
 
 ## Implementation Concept
 
+#### Flow of processing the training data
+
+1. Training data
+   1. Training data is sampled from the current policy
+   2. Sampled data is split into episodes
+   3. Episodes are split into sequences (based on the `sequence_length` hyperparameter)
+   4. Zero padding is applied to retrieve sequences of fixed length
+   5. Recurrent cell states are collected from the beginning of the sequences (truncated bptt)
+2. Forward pass of the model
+   1. While feeding the model for optimization, the data is flattened to feed an entire batch (faster)
+   2. Before feeding it to the recurrent layer, the data is reshaped to `(num_sequences, sequence_length, data)`
+3. Loss computation
+   1. Zero padded values are masked during the computation of the losses
+
 ## Found & Fixed Bugs
 
 As a reinforcement learning engineer, one has to have high endurance. Therefore, we are providing some information on the bugs that slowed us down for months.
 
-### Feeding None to nn.GRU/nn.LSTM
+#### Feeding None to nn.GRU/nn.LSTM
 
 We observed an **exploding value function**. This was due to unintentionally feeding None to the recurrent layer. In this case, PyTorch uses zeros for the hidden states as shown by its [source code](https://github.com/pytorch/pytorch/blob/8d50a4e326e10fe29e322753bb90be15546e5435/torch/nn/modules/rnn.py#L662).
 
@@ -23,6 +37,6 @@ if hx is None:
     hx = (h_zeros, c_zeros)
 ```
 
-### Reshaping an Entire Batch into Sequences
+#### Reshaping an Entire Batch into Sequences
 
 Training an agent using a **sequence length greater than 1** caused the agent to just achieve a **performance of a random agent**. The issue behind this bug was found in reshaping the data right before feeding it to the recurrent layer. In general, the desire is to feed the entire training batch instead of sequences to the encoder (e.g. convolutional layers). Before feeding the processed batch to the recurrent layer, it has to be rearranged into sequences. At the point of this bug, the recurrent layer was initialized with `batch_first=False`. Hence, the data was reshaped using `h.reshape(sequence_length, num_sequences, data)`. This messed up the structure of the sequences and ultimately caused this bug. We fixed this by setting `batch_first` to `True` and therefore reshaping the data by `h.reshape(num_sequences, sequence_length, data)`.
