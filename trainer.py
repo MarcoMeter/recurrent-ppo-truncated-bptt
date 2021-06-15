@@ -262,7 +262,7 @@ class PPOTrainer:
         self.writer.add_scalar("losses/policy_loss", training_stats[0], update)
         self.writer.add_scalar("losses/value_loss", training_stats[1], update)
         self.writer.add_scalar("losses/entropy", training_stats[3], update)
-        self.writer.add_scalar("training/sequence_length", self.buffer.actual_sequence_length, update)
+        self.writer.add_scalar("training/sequence_length", self.buffer.true_sequence_length, update)
         self.writer.add_scalar("training/value_mean", np.mean(self.buffer.values), update)
         self.writer.add_scalar("training/advantage_mean", np.mean(self.buffer.advantages), update)
 

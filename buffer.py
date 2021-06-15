@@ -21,8 +21,7 @@ class Buffer():
         hidden_state_size = config["recurrence"]["hidden_state_size"]
         self.layer_type = config["recurrence"]["layer_type"]
         self.sequence_length = config["recurrence"]["sequence_length"]
-        self.num_sequences = 0
-        self.actual_sequence_length = 0
+        self.true_sequence_length = 0
 
         # Initialize the buffer's data storage
         self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
@@ -98,9 +97,9 @@ class Buffer():
                 # Select only the very first recurrent cell state of a sequence and add it to the samples
                 samples[key] = samples[key][:, 0]
 
-        # Store important information concerning the sequences
-        self.num_sequences = len(samples["values"])
-        self.actual_sequence_length = max_sequence_length
+        # If the sequence length is based on entire episodes, it will be as long as the longest episode.
+        # Hence, this information has to be stored for the mini batch generation.
+        self.true_sequence_length = max_sequence_length
         
         # Flatten all samples and convert them to a tensor
         self.samples_flat = {}
@@ -144,22 +143,23 @@ class Buffer():
             {dict} -- Mini batch data for training
         """
         # Determine the number of sequences per mini batch
-        num_sequences_per_batch = self.num_sequences // self.n_mini_batches
+        num_sequences = len(self.samples_flat["values"]) // self.true_sequence_length
+        num_sequences_per_batch = num_sequences // self.n_mini_batches
         # Arrange a list that determines the sequence count for each mini batch
         num_sequences_per_batch = [num_sequences_per_batch] * self.n_mini_batches
-        remainder = self.num_sequences % self.n_mini_batches
+        remainder = num_sequences % self.n_mini_batches
         for i in range(remainder):
             # Add the remainder if the sequence count and the number of mini batches do not share a common divider
             num_sequences_per_batch[i] += 1
         # Prepare indices, but only shuffle the sequence indices and not the entire batch.
-        indices = np.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
-        sequence_indices = torch.randperm(self.num_sequences)
+        indices = np.arange(0, num_sequences * self.true_sequence_length).reshape(num_sequences, self.true_sequence_length)
+        sequence_indices = torch.randperm(num_sequences)
         # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 
         # Compose mini batches
         start = 0
-        for num_sequences in num_sequences_per_batch:
-            end = start + num_sequences
+        for n_sequences in num_sequences_per_batch:
+            end = start + n_sequences
             mini_batch_indices = indices[sequence_indices[start:end]].reshape(-1)
             mini_batch = {}
             for key, value in self.samples_flat.items():
