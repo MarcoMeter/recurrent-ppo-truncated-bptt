@@ -131,7 +131,7 @@ class PocMemoryEnv():
 
         return obs, reward, done, info
 
-    def render(self, delay=2):
+    def render(self):
         if self.op is None:
             self.init_render = False
             self.op = output()
@@ -147,11 +147,11 @@ class PocMemoryEnv():
 
         self.op[1] = ('######' * num_grids +  "#")
         self.op[2] = ('#     ' * num_grids + "#")
-        field = [*('#     ' * agent_grid)[:-3], *"x  ", *('#     ' * (num_grids - agent_grid)), "#"]
+        field = [*('#     ' * agent_grid)[:-3], *"a  ", *('#     ' * (num_grids - agent_grid)), "#"]
 
-        if field[3] != "x":
+        if field[3] != "a":
             field[3] = "+" if self._goals[0] > 0 else "-"
-        if field[-4] != "x":
+        if field[-4] != "a":
             field[-4] = "+" if self._goals[1] > 0 else "-"
 
         self.op[3] = ("".join(field))
@@ -160,7 +160,7 @@ class PocMemoryEnv():
         
         self.op[6] = ("Goals are shown: " + str(self._num_show_steps > self._step_count))
 
-        time.sleep(delay)
+        time.sleep(1.0)
 
         
 
