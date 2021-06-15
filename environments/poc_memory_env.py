@@ -145,8 +145,8 @@ class PocMemoryEnv():
         num_grids = 2 * int(1 / self._step_size) + 1
         agent_grid = int(num_grids / 2 + self._position / self._step_size) + 1
 
-        self.op[1] = ('######' * num_grids +  "#")
-        self.op[2] = ('#     ' * num_grids + "#")
+        self.op[1] = '######' * num_grids +  "#"
+        self.op[2] = '#     ' * num_grids + "#"
         field = [*('#     ' * agent_grid)[:-3], *"a  ", *('#     ' * (num_grids - agent_grid)), "#"]
 
         if field[3] != "a":
@@ -154,11 +154,11 @@ class PocMemoryEnv():
         if field[-4] != "a":
             field[-4] = "+" if self._goals[1] > 0 else "-"
 
-        self.op[3] = ("".join(field))
-        self.op[4] = ('#     ' * num_grids + "#")
-        self.op[5] = ('######' * num_grids + "#")
+        self.op[3] = "".join(field)
+        self.op[4] = '#     ' * num_grids + "#"
+        self.op[5] = '######' * num_grids + "#"
         
-        self.op[6] = ("Goals are shown: " + str(self._num_show_steps > self._step_count))
+        self.op[6] = "Goals are shown: " + str(self._num_show_steps > self._step_count)
 
         time.sleep(1.0)
 
@@ -167,3 +167,4 @@ class PocMemoryEnv():
     def close(self):
         if self.op is not None:
             self.op.clear()
+            self.op = None
