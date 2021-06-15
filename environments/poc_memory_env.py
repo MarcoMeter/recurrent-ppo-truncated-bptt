@@ -2,6 +2,8 @@ from gym.spaces import space
 import numpy as np
 from gym import spaces
 import time
+import os
+from reprint import output
 
 class PocMemoryEnv():
     """
@@ -39,6 +41,8 @@ class PocMemoryEnv():
 
         self.possible_positions = np.arange(lower, upper, self._step_size).clip(-1 + self._step_size, 1 - self._step_size)
         self.possible_positions = list(map(lambda x: round(x, 2), self.possible_positions)) # fix floating point errors
+
+        self.op = None
 
 
     def reset(self, **kwargs):
@@ -128,12 +132,21 @@ class PocMemoryEnv():
         return obs, reward, done, info
 
     def render(self, delay=2):
+        if self.op is None:
+            self.init_render = False
+            self.op = output()
+            self.op = self.op.warped_obj
+            os.system('cls||clear')
+
+            for _ in range(6):
+                self.op.append("#")
+
+
         num_grids = 2 * int(1 / self._step_size) + 1
         agent_grid = int(num_grids / 2 + self._position / self._step_size) + 1
 
-        
-        print('######' * num_grids, "#", sep="")
-        print('#     ' * num_grids, "#", sep="")
+        self.op[1] = ('######' * num_grids +  "#")
+        self.op[2] = ('#     ' * num_grids + "#")
         field = [*('#     ' * agent_grid)[:-3], *"x  ", *('#     ' * (num_grids - agent_grid)), "#"]
 
         if field[3] != "x":
@@ -141,15 +154,16 @@ class PocMemoryEnv():
         if field[-4] != "x":
             field[-4] = "+" if self._goals[1] > 0 else "-"
 
-        print("".join(field))
-        print('#     ' * num_grids, "#", sep="")
-        print('######' * num_grids, "#", sep="")
+        self.op[3] = ("".join(field))
+        self.op[4] = ('#     ' * num_grids + "#")
+        self.op[5] = ('######' * num_grids + "#")
         
-        print("Goals are shown: ", self._num_show_steps > self._step_count)
+        self.op[6] = ("Goals are shown: " + str(self._num_show_steps > self._step_count))
 
         time.sleep(delay)
 
         
 
     def close(self):
-        pass
+        if self.op is not None:
+            self.op.clear()
