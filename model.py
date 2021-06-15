@@ -113,6 +113,9 @@ class ActorCriticModel(nn.Module):
             h_shape = tuple(h.size())
             h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
 
+        # Activation of the recurrent layer
+        h = F.relu(h)
+
         # Feed hidden layer
         h = F.relu(self.lin_hidden(h))
 
