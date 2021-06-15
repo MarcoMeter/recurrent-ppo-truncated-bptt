@@ -4,7 +4,7 @@ import numpy as np
 
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies. """
-    def __init__(self, config:dict, observation_space:spaces.Box, device:torch.device):
+    def __init__(self, config:dict, observation_space:spaces.Box, device:torch.device) -> None:
         """
         Args:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
@@ -35,7 +35,7 @@ class Buffer():
         self.values = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
         self.advantages = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
 
-    def prepare_batch_dict(self, episode_done_indices:list):
+    def prepare_batch_dict(self, episode_done_indices:list) -> None:
         """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
         the data is split into episodes or sequences beforehand.
         
@@ -108,7 +108,7 @@ class Buffer():
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.device)
 
-    def pad_sequence(self, sequence:np.ndarray, target_length:int):
+    def pad_sequence(self, sequence:np.ndarray, target_length:int) -> np.ndarray:
         """Pads a sequence to the target length using zeros.
 
         Args:
@@ -135,7 +135,7 @@ class Buffer():
         # Concatenate the zeros to the sequence
         return np.concatenate((sequence, padding), axis=0)
 
-    def recurrent_mini_batch_generator(self):
+    def recurrent_mini_batch_generator(self) -> dict:
         """A recurrent generator that returns a dictionary providing training data arranged in mini batches.
         This generator shuffles the data by sequences.
 
@@ -170,11 +170,11 @@ class Buffer():
             start = end
             yield mini_batch
 
-    def calc_advantages(self, last_value:np.ndarray, gamma:float, lamda:float):
+    def calc_advantages(self, last_value:np.ndarray, gamma:float, lamda:float) -> None:
         """Generalized advantage estimation (GAE)
 
         Arguments:
-            last_value {np.ndarray} -- Value of the last agent"s state
+            last_value {np.ndarray} -- Value of the last agent's state
             gamma {float} -- Discount factor
             lamda {float} -- GAE regularization parameter
         """
