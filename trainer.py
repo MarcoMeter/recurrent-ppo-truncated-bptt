@@ -8,6 +8,7 @@ from buffer import Buffer
 from model import ActorCriticModel
 from worker import Worker
 from utils import create_env
+from utils import polynomial_decay
 from collections import deque
 from torch.utils.tensorboard import SummaryWriter
 
@@ -25,6 +26,9 @@ class PPOTrainer:
         self.recurrence = config["recurrence"]
         self.device = device
         self.run_id = run_id
+        self.lr_schedule = config["learning_rate_schedule"]
+        self.beta_schedule = config["beta_schedule"]
+        self.cr_schedule = config["clip_range_schedule"]
 
         # Setup Tensorboard Summary Writer
         if not os.path.exists("./summaries"):
@@ -47,7 +51,7 @@ class PPOTrainer:
         print("Step 3: Init model and optimizer")
         self.model = ActorCriticModel(self.config, observation_space, action_space_shape).to(self.device)
         self.model.train()
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.config["learning_rate"])
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
 
         # Init workers
         print("Step 4: Init environment workers")
@@ -79,6 +83,11 @@ class PPOTrainer:
         episode_infos = deque(maxlen=100)
 
         for update in range(self.config["updates"]):
+            # Decay hyperparameters polynomially based on the provided config
+            learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"], self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
+            beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
+            clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"], self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
+
             # Sample training data
             sampled_episode_info = self._sample_training_data()
 
@@ -86,7 +95,7 @@ class PPOTrainer:
             self.buffer.prepare_batch_dict()
 
             # Train epochs
-            training_stats = self._train_epochs(self.config["learning_rate"], self.config["clip_range"], self.config["beta"])
+            training_stats = self._train_epochs(learning_rate, clip_range, beta)
             training_stats = np.mean(training_stats, axis=0)
 
             # Store recent episode infos

@@ -8,16 +8,34 @@ def cartpole_masked_config():
         "n_workers": 16,
         "worker_steps": 256,
         "n_mini_batch": 4,
-        "learning_rate": 1.5e-4,
-        "beta": 0.0001,
         "value_loss_coefficient": 0.2,
-        "clip_range": 0.2,
         "hidden_layer_size": 128,
         "recurrence": 
             {
             "sequence_length": 8,
             "hidden_state_size": 64,
             "layer_type": "lstm"
+            },
+        "learning_rate_schedule":
+            {
+            "initial": 3.0e-4,
+            "final": 3.0e-6,
+            "power": 1.0,
+            "max_decay_steps": 100
+            },
+        "beta_schedule":
+            {
+            "initial": 0.001,
+            "final": 0.0001,
+            "power": 1.0,
+            "max_decay_steps": 100
+            },
+        "clip_range_schedule":
+            {
+            "initial": 0.2,
+            "final": 0.2,
+            "power": 1.0,
+            "max_decay_steps": 1000
             }
     }
 
@@ -35,12 +53,33 @@ def minigrid_config():
         "beta": 0.001,
         "value_loss_coefficient": 0.1,
         "clip_range": 0.2,
-        "hidden_layer_size": 512,
+        "hidden_layer_size": 256,
         "recurrence": 
             {
-            "sequence_length": 8,
-            "hidden_state_size": 256,
+            "sequence_length": 12,
+            "hidden_state_size": 128,
             "layer_type": "lstm"
+            },
+        "learning_rate_schedule":
+            {
+            "initial": 3.0e-4,
+            "final": 3.0e-6,
+            "power": 1.0,
+            "max_decay_steps": 300
+            },
+        "beta_schedule":
+            {
+            "initial": 0.001,
+            "final": 0.0005,
+            "power": 1.0,
+            "max_decay_steps": 300
+            },
+        "clip_range_schedule":
+            {
+            "initial": 0.2,
+            "final": 0.2,
+            "power": 1.0,
+            "max_decay_steps": 1000
             }
     }
 
@@ -64,5 +103,26 @@ def poc_memory_env_config():
             "sequence_length": 8,
             "hidden_state_size": 32,
             "layer_type": "gru"
+            },
+        "learning_rate_schedule":
+            {
+            "initial": 3.0e-4,
+            "final": 3.0e-4,
+            "power": 1.0,
+            "max_decay_steps": 30
+            },
+        "beta_schedule":
+            {
+            "initial": 0.001,
+            "final": 0.0001,
+            "power": 1.0,
+            "max_decay_steps": 30
+            },
+        "clip_range_schedule":
+            {
+            "initial": 0.2,
+            "final": 0.2,
+            "power": 1.0,
+            "max_decay_steps": 30
             }
     }
