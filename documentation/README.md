@@ -108,7 +108,11 @@ Training an agent using a **sequence length greater than 1** caused the agent to
 
 # Model Architecture
 
+![Model Architecture](images/model.svg)
 
+The figure above illustrates the model architecture in the case of training Minigrid. The visual observation is processed by 3 convolutional layers. The flattened result is then divided into sequences before feeding it to the recurrent layer. After passing the recurrent layer's result to one hidden layer, the network is split into two streams. One computes the value function and the other one the policy.
+
+In the case of training an environment that utilizes vector observations only, the visual encoder is omitted and the observation is fed directly to the recurrent layer.
 
 # Add environment
 
