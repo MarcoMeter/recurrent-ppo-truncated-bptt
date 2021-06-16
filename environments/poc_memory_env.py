@@ -78,7 +78,7 @@ class PocMemoryEnv():
         Executes the agents action in the environment if the agent is allowed to move.
 
         Args:
-            action {int} -- The action which should be executed.
+            action {int} -- The agent action which should be executed.
 
         Returns:
             {numpy.ndarray} -- Observation of the agent.
