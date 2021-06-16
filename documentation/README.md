@@ -15,9 +15,13 @@
 # Installation
 
 Install [PyTorch](https://pytorch.org/get-started/locally/) 1.8.1 depending on your platform.
+
 CPU:
+
 `pip install torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html`
+
 CUDA:
+
 `pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html`
 
 Install the remaining requirements and you are good to go:
@@ -38,6 +42,7 @@ Options:
 ```
 
 Hyperparameters are configured inside of `configs.py`. The to be used config has to be specified inside of `train.py`. Once the training is done, the final model will be saved to `./models/run-id.nn`. Training statistics are stored inside the `./summaries` directory.
+
 ```python train.py --run-id=my-training-run```
 
 # Enjoy a model
@@ -55,6 +60,7 @@ Options:
 ```
 
 The path to the desired model has to be specified using the `--model` flag:
+
 ```python enjoy.py --model=./models/minigrid.nn```
 
 # Recurrent Policy
