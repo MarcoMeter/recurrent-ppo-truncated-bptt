@@ -110,6 +110,7 @@ class PPOTrainer:
         # Save model
         if not os.path.exists("./models"):
             os.makedirs("./models")
+        self.model.cpu()
         pickle.dump((self.model.state_dict(), self.config), open("./models/" + self.run_id + ".nn", "wb"))
         print("Model saved to " + "./models/" + self.run_id + ".nn")
 

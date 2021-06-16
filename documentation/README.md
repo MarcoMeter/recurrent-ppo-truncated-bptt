@@ -14,7 +14,14 @@
 
 # Installation
 
+Install [PyTorch](https://pytorch.org/get-started/locally/) 1.8.1 depending on your platform.
+CPU:
+`pip install torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html`
+CUDA:
+`pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html`
 
+Install the remaining requirements and you are good to go:
+`pip install -r requirements.txt`
 
 # Train a model
 
