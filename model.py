@@ -79,7 +79,7 @@ class ActorCriticModel(nn.Module):
             nn.init.orthogonal_(m.weight, 1)
         elif isinstance(m, nn.Conv2d) and m.out_features == self.action_space_shape[0]: # init weight of policy head
             nn.init.orthogonal_(m.weight, np.sqrt(0.01))
-        if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+        elif isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
             nn.init.orthogonal_(m.weight, np.sqrt(2))
 
     def forward(self, obs:np.ndarray, recurrent_cell:torch.tensor, device:torch.device, sequence_length:int=1):
