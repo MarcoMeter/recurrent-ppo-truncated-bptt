@@ -24,7 +24,7 @@ def main():
         device = torch.device("cpu")
 
     # Initialize the PPO trainer and commence training
-    PPOTrainer(minigrid_config(), run_id=run_id, device=device).run_training()
+    PPOTrainer(poc_memory_env_config(), run_id=run_id, device=device).run_training()
 
 if __name__ == "__main__":
     main()

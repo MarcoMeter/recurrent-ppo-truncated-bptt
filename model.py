@@ -162,8 +162,8 @@ class ActorCriticModel(nn.Module):
             {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and
                      cell states are returned using initial values.
         """
-        hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device).unsqueeze(0)
+        hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, requires_grad=True, device=device).unsqueeze(0)
         cxs = None
         if self.recurrence["layer_type"] == "lstm":
-            cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device).unsqueeze(0)
+            cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, requires_grad=True, device=device).unsqueeze(0)
         return hxs, cxs
