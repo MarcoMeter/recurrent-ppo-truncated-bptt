@@ -22,14 +22,18 @@ class ActorCriticModel(nn.Module):
         if len(self.observation_space_shape) > 1:
             # Case: visual observation is available
             # Visual encoder made of 3 convolutional layers
-            self.conv1 = nn.Conv2d(observation_space.shape[0], 32, 8, 4,)
-            self.conv2 = nn.Conv2d(32, 64, 4, 2, 0)
-            self.conv3 = nn.Conv2d(64, 64, 3, 1, 0)
-            nn.init.orthogonal_(self.conv1.weight, np.sqrt(2))
-            nn.init.orthogonal_(self.conv2.weight, np.sqrt(2))
-            nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
+            self.encoder = nn.Sequential(
+                nn.Conv2d(observation_space.shape[0], 32, 8, 4,),
+                nn.ReLU(),
+                nn.Conv2d(32, 64, 4, 2, 0),
+                nn.ReLU(),
+                nn.Conv2d(64, 64, 3, 1, 0),
+                nn.Flatten()
+            )
+
             # Compute output size of convolutional layers
             self.conv_out_size = self.get_conv_output(observation_space.shape)
+
             in_features_next_layer = self.conv_out_size
         else:
             # Case: vector observation is available
@@ -46,27 +50,37 @@ class ActorCriticModel(nn.Module):
                 nn.init.constant_(param, 0)
             elif "weight" in name:
                 nn.init.orthogonal_(param, np.sqrt(2))
+
         # Hidden layer
         self.lin_hidden = nn.Linear(self.recurrence["hidden_state_size"], self.hidden_size)
-        nn.init.orthogonal_(self.lin_hidden.weight, np.sqrt(2))
-
-        # Decouple policy from value
-        # Hidden layer of the policy
-        self.lin_policy = nn.Linear(self.hidden_size, self.hidden_size)
-        nn.init.orthogonal_(self.lin_policy.weight, np.sqrt(2))
-
-        # Hidden layer of the value function
-        self.lin_value = nn.Linear(self.hidden_size, self.hidden_size)
-        nn.init.orthogonal_(self.lin_value.weight, np.sqrt(2))
 
         # Outputs / Model Heads
         # Policy
-        self.policy = nn.Linear(self.hidden_size, action_space_shape[0])
-        nn.init.orthogonal_(self.policy.weight, np.sqrt(0.01))
+        self.policy = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, action_space_shape[0])
+        )
 
         # Value Function
-        self.value = nn.Linear(self.hidden_size, 1)
-        nn.init.orthogonal_(self.value.weight, 1)
+        self.value = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, 1)
+        )
+
+        # init weights
+        self.apply(self.init_weights)
+
+        # init weight of policy head
+        nn.init.orthogonal_(self.policy[2].weight, np.sqrt(0.01))
+        
+        # init weight of value head
+        nn.init.orthogonal_(self.value[2].weight, 1)
+
+    def init_weights(self, m):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+            nn.init.orthogonal_(m.weight, np.sqrt(2))
 
     def forward(self, obs:np.ndarray, recurrent_cell:torch.tensor, device:torch.device, sequence_length:int=1):
         """Forward pass of the model
@@ -87,11 +101,7 @@ class ActorCriticModel(nn.Module):
             vis_obs = torch.tensor(obs, dtype=torch.float32, device=device)     # Convert vis_obs to tensor
             batch_size = vis_obs.size()[0]
             # Propagate input through the visual encoder
-            h = F.relu(self.conv1(vis_obs))
-            h = F.relu(self.conv2(h))
-            h = F.relu(self.conv3(h))
-            # Flatten the output of the convolutional layers
-            h = h.reshape((batch_size, -1))
+            h = self.encoder(vis_obs)
         else:
             h = torch.tensor(obs, dtype=torch.float32, device=device)           # Convert vec_obs to tensor
 
@@ -118,16 +128,11 @@ class ActorCriticModel(nn.Module):
 
         # Feed hidden layer
         h = F.relu(self.lin_hidden(h))
-
-        # Decouple policy from value
-        # Feed hidden layer (policy)
-        h_policy = F.relu(self.lin_policy(h))
-        # Feed hidden layer (value function)
-        h_value = F.relu(self.lin_value(h))
+        
         # Head: Value Function
-        value = self.value(h_value).reshape(-1)
+        value = self.value(h).reshape(-1)
         # Head: Policy
-        pi = Categorical(logits=self.policy(h_policy))
+        pi = Categorical(logits=self.policy(h))
 
         return pi, value, recurrent_cell
 
@@ -140,10 +145,8 @@ class ActorCriticModel(nn.Module):
         Returns:
             {int} -- Number of output features returned by the utilized convolutional layers
         """
-        o = self.conv1(torch.zeros(1, *shape))
-        o = self.conv2(o)
-        o = self.conv3(o)
-        return int(np.prod(o.size()))
+        o = self.encoder(torch.zeros(1, *shape))
+        return int(o.size()[1])
  
     def init_recurrent_cell_states(self, num_sequences:int, device:torch.device):
         """Initializes the recurrent cell states (hxs, cxs) as zeros.
