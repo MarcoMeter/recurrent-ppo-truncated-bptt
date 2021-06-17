@@ -60,7 +60,7 @@ class ActorCriticModel(nn.Module):
         self.policy = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, action_space_shape[0])
+            nn.Linear(self.hidden_size, self.action_space_shape[0])
         )
 
         # Value Function
@@ -71,8 +71,7 @@ class ActorCriticModel(nn.Module):
         )
 
         # init weights
-        self.apply(self.init_weights)
-        
+        self.apply(self.init_weights)    
 
     def init_weights(self, m):
         if isinstance(m, nn.Linear) and m.out_features == 1: # init weight of value head
