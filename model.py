@@ -75,9 +75,9 @@ class ActorCriticModel(nn.Module):
 
     @torch.no_grad()
     def init_weights(self, m):
-        if isinstance(m, nn.Linear) and m.out_features == 1: # init weight of value head
+        if isinstance(m, nn.Linear) and m.out_features == 1: # init weights of value head
             nn.init.orthogonal_(m.weight, 1)
-        elif isinstance(m, nn.Conv2d) and m.out_features == self.action_space_shape[0]: # init weight of policy head
+        elif isinstance(m, nn.Conv2d) and m.out_features == self.action_space_shape[0]: # init weights of policy head
             nn.init.orthogonal_(m.weight, np.sqrt(0.01))
         elif isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
             nn.init.orthogonal_(m.weight, np.sqrt(2))
