@@ -86,7 +86,6 @@ class PocMemoryEnv():
             {bool} -- Done flag whether the episode has terminated.
             {dict} -- Information about episode reward, length and agents success reaching the goal position
         """
-
         reward = 0.0
         done = False
         info = None
@@ -173,9 +172,7 @@ class PocMemoryEnv():
         
         self.op[6] = ("Goals are shown: " + str(self._num_show_steps > self._step_count))
 
-        time.sleep(1.0)
-
-        
+        time.sleep(1.0) 
 
     def close(self):
         """
