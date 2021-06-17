@@ -73,6 +73,7 @@ class ActorCriticModel(nn.Module):
         # init weights
         self.apply(self.init_weights)    
 
+    @torch.no_grad()
     def init_weights(self, m):
         if isinstance(m, nn.Linear) and m.out_features == 1: # init weight of value head
             nn.init.orthogonal_(m.weight, 1)
@@ -98,7 +99,6 @@ class ActorCriticModel(nn.Module):
         # Forward observation encoder
         if len(self.observation_space_shape) > 1:
             vis_obs = torch.tensor(obs, dtype=torch.float32, device=device)     # Convert vis_obs to tensor
-            batch_size = vis_obs.size()[0]
             # Propagate input through the visual encoder
             h = self.encoder(vis_obs)
         else:
