@@ -28,6 +28,7 @@ class Minigrid:
         return spaces.Discrete(3)
 
     def reset(self):
+        self._env.seed(np.random.randint(0, 99))
         self._rewards = []
         obs = self._env.reset()
         obs = self._env.get_obs_render(obs["image"], tile_size=28).astype(np.float32) / 255.
