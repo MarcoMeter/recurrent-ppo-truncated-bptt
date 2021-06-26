@@ -44,7 +44,7 @@ def minigrid_config():
         "env": "Minigrid",
         "gamma": 0.99,
         "lamda": 0.95,
-        "updates": 300,
+        "updates": 500,
         "epochs": 4,
         "n_workers": 16,
         "worker_steps": 256,

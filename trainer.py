@@ -311,3 +311,24 @@ class PPOTrainer:
                 result[key + "_mean"] = np.mean([info[key] for info in episode_info])
                 result[key + "_std"] = np.std([info[key] for info in episode_info])
         return result
+
+    def close(self):
+        try:
+            self.dummy_env.close()
+        except:
+            pass
+
+        try:
+            self.writer.close()
+        except:
+            pass
+
+        try:
+            for worker in self.workers:
+                worker.child.send(("close", None))
+        except:
+            pass
+
+        import time
+        time.sleep(1.0)
+        exit(0)
