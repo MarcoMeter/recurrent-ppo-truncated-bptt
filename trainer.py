@@ -335,6 +335,5 @@ class PPOTrainer:
         except:
             pass
 
-        import time
         time.sleep(1.0)
         exit(0)
