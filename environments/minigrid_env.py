@@ -5,7 +5,6 @@ import time
 from gym import spaces
 from gym_minigrid.wrappers import ViewSizeWrapper
 
-
 class Minigrid:
     def __init__(self):
         self._env = gym.make("MiniGrid-MemoryS9-v0")
