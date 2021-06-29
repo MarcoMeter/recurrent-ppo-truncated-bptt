@@ -14,7 +14,8 @@ def cartpole_masked_config():
             {
             "sequence_length": 8,
             "hidden_state_size": 64,
-            "layer_type": "lstm"
+            "layer_type": "lstm",
+            "reset_hidden_state": True
             },
         "learning_rate_schedule":
             {
@@ -58,7 +59,8 @@ def minigrid_config():
             {
             "sequence_length": 12,
             "hidden_state_size": 128,
-            "layer_type": "lstm"
+            "layer_type": "lstm",
+            "reset_hidden_state": False
             },
         "learning_rate_schedule":
             {
@@ -102,7 +104,8 @@ def poc_memory_env_config():
             {
             "sequence_length": 8,
             "hidden_state_size": 32,
-            "layer_type": "gru"
+            "layer_type": "gru",
+            "reset_hidden_state": True
             },
         "learning_rate_schedule":
             {

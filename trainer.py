@@ -168,12 +168,13 @@ class PPOTrainer:
                     # Get data from reset
                     obs = worker.child.recv()
                     # Reset recurrent cell states
-                    hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
-                    if self.recurrence["layer_type"] == "gru":
-                        self.recurrent_cell[:, w] = hxs
-                    elif self.recurrence["layer_type"] == "lstm":
-                        self.recurrent_cell[0][:, w] = hxs
-                        self.recurrent_cell[1][:, w] = cxs
+                    if self.recurrence["reset_hidden_state"]:
+                        hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
+                        if self.recurrence["layer_type"] == "gru":
+                            self.recurrent_cell[:, w] = hxs
+                        elif self.recurrence["layer_type"] == "lstm":
+                            self.recurrent_cell[0][:, w] = hxs
+                            self.recurrent_cell[1][:, w] = cxs
                 # Store latest observations
                 self.obs[w] = obs
                             
