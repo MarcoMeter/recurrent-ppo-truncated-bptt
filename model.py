@@ -46,6 +46,7 @@ class ActorCriticModel(nn.Module):
                 nn.init.constant_(param, 0)
             elif "weight" in name:
                 nn.init.orthogonal_(param, np.sqrt(2))
+        
         # Hidden layer
         self.lin_hidden = nn.Linear(self.recurrence["hidden_state_size"], self.hidden_size)
         nn.init.orthogonal_(self.lin_hidden.weight, np.sqrt(2))
@@ -130,7 +131,7 @@ class ActorCriticModel(nn.Module):
 
         return pi, value, recurrent_cell
 
-    def get_conv_output(self, shape:tuple):
+    def get_conv_output(self, shape:tuple) -> int:
         """Computes the output size of the convolutional layers by feeding a dummy tensor.
 
         Args:
@@ -144,7 +145,7 @@ class ActorCriticModel(nn.Module):
         o = self.conv3(o)
         return int(np.prod(o.size()))
  
-    def init_recurrent_cell_states(self, num_sequences:int, device:torch.device):
+    def init_recurrent_cell_states(self, num_sequences:int, device:torch.device) -> tuple:
         """Initializes the recurrent cell states (hxs, cxs) as zeros.
 
         Args:
