@@ -116,12 +116,8 @@ class PPOTrainer:
             # Write training statistics to tensorboard
             self._write_training_summary(update, training_stats, episode_result)
 
-        # Save model
-        if not os.path.exists("./models"):
-            os.makedirs("./models")
-        self.model.cpu()
-        pickle.dump((self.model.state_dict(), self.config), open("./models/" + self.run_id + ".nn", "wb"))
-        print("Model saved to " + "./models/" + self.run_id + ".nn")
+        # Save the trained model at the end of the training
+        self._save_model()
 
     def _sample_training_data(self) -> list:
         """Runs all n workers for n steps to sample training data.
@@ -312,6 +308,14 @@ class PPOTrainer:
                 result[key + "_mean"] = np.mean([info[key] for info in episode_info])
                 result[key + "_std"] = np.std([info[key] for info in episode_info])
         return result
+
+    def _save_model(self) -> None:
+        """Saves the model and the used training config to the models directory. The filename is based of the run id."""
+        if not os.path.exists("./models"):
+            os.makedirs("./models")
+        self.model.cpu()
+        pickle.dump((self.model.state_dict(), self.config), open("./models/" + self.run_id + ".nn", "wb"))
+        print("Model saved to " + "./models/" + self.run_id + ".nn")
 
     def close(self) -> None:
         """Terminates the trainer and all related processes."""
