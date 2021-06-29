@@ -112,7 +112,7 @@ Training an agent using a **sequence length greater than 1** caused the agent to
 
 #### Hidden States were not Reset
 
-This is rather considered as a feature and not a bug. For environments that produce rather short episodes are likely to take advantage of not resetting the hidden state upon commencing a new episode. This is the case for MinigridMemory-S9. Resetting hidden states is now controlled by the hyperparameter `` inside configs.py.
+This is rather considered as a feature and not a bug. For environments that produce rather short episodes are likely to take advantage of not resetting the hidden states upon commencing a new episode. This is the case for MinigridMemory-S9. Resetting hidden states is now controlled by the hyperparameter `reset_hidden_state` inside configs.py. The actual mistake was the mixed up order of saving the recurrent cell to its respective placeholder and resetting it.
 
 # Model Architecture
 
