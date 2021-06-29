@@ -50,7 +50,7 @@ def minigrid_config():
         "n_workers": 16,
         "worker_steps": 256,
         "n_mini_batch": 8,
-        "value_loss_coefficient": 0.1,
+        "value_loss_coefficient": 0.25,
         "hidden_layer_size": 512,
         "recurrence": 
             {
