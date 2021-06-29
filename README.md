@@ -4,14 +4,18 @@ This repository features a PyTorch based implementation of PPO using a recurrent
 
 # Features
 
-- Environments
-  - Proof-of-concept Memory Task (PocMemoryEnv)
-  - CartPole with masked velocity
-  - Minigrid Memory using visual observations of size 84x84
 - Recurrent Policy
   - GRU
   - LSTM
   - Truncated BPTT
+- Environments
+  - Proof-of-concept Memory Task (PocMemoryEnv)
+  - CartPole
+    - Masked velocity
+  - MinigridMemory
+    - Visual Observation Space: 3x84x84
+    - Egocentric Agent View Size: 3x3 (default 7x7)
+    - Action Space: forward, rotate left, rotate right
 - Tensorboard
 - Enjoy (watch a trained agent play)
 
