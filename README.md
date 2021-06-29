@@ -237,6 +237,8 @@ Run `tensorboad --logdir=summaries` to watch the training statistics in your bro
 
 # Plotting Results
 
+The code for plotting the results can be found in the results directory.
+
 ## MinigridMemory-S9
 
 
