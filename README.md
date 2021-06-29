@@ -241,13 +241,13 @@ The code for plotting the results can be found in the results directory.
 
 ## MinigridMemory-S9
 
-
+![Minigrid Memory Result](images/minigrid_result.svg)
 
 ## PoC Memory Task
 
-![PoC Results](images/poc_result.svg)
+![PoC Result](images/poc_result.svg)
 
 ## Cartpole Masked Velocity
 
-![CartPole Masked Velocity Results](images/cartpole_result.svg)
+![CartPole Masked Velocity Result](images/cartpole_result.svg)
 
