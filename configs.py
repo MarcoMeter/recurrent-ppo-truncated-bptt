@@ -69,7 +69,7 @@ def minigrid_config():
         "beta_schedule":
             {
             "initial": 0.001,
-            "final": 0.0005,
+            "final": 0.001,
             "power": 1.0,
             "max_decay_steps": 300
             },
