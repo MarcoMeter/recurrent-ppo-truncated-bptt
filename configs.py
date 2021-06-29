@@ -50,10 +50,7 @@ def minigrid_config():
         "n_workers": 16,
         "worker_steps": 256,
         "n_mini_batch": 8,
-        "learning_rate": 2.0e-4,
-        "beta": 0.001,
         "value_loss_coefficient": 0.1,
-        "clip_range": 0.2,
         "hidden_layer_size": 256,
         "recurrence": 
             {
@@ -95,10 +92,7 @@ def poc_memory_env_config():
         "n_workers": 16,
         "worker_steps": 128,
         "n_mini_batch": 8,
-        "learning_rate": 1.0e-4,
-        "beta": 0.0001,
         "value_loss_coefficient": 0.1,
-        "clip_range": 0.2,
         "hidden_layer_size": 64,
         "recurrence": 
             {

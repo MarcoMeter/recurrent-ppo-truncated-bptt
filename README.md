@@ -110,9 +110,104 @@ if hx is None:
 
 Training an agent using a **sequence length greater than 1** caused the agent to just achieve a **performance of a random agent**. The issue behind this bug was found in reshaping the data right before feeding it to the recurrent layer. In general, the desire is to feed the entire training batch instead of sequences to the encoder (e.g. convolutional layers). Before feeding the processed batch to the recurrent layer, it has to be rearranged into sequences. At the point of this bug, the recurrent layer was initialized with `batch_first=False`. Hence, the data was reshaped using `h.reshape(sequence_length, num_sequences, data)`. This messed up the structure of the sequences and ultimately caused this bug. We fixed this by setting `batch_first` to `True` and therefore reshaping the data by `h.reshape(num_sequences, sequence_length, data)`.
 
-#### Hidden States were not Reset
+#### Hidden States were not reset
 
 This is rather considered as a feature and not a bug. For environments that produce rather short episodes are likely to take advantage of not resetting the hidden states upon commencing a new episode. This is the case for MinigridMemory-S9. Resetting hidden states is now controlled by the hyperparameter `reset_hidden_state` inside configs.py. The actual mistake was the mixed up order of saving the recurrent cell to its respective placeholder and resetting it.
+
+# Hyperparameters
+
+#### Recurrence
+
+<table>
+  <thead>
+    <tr>
+      <th>Hyperparameter</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>sequence_length</td>
+      <td>Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths</td>
+    </tr>
+    <tr>
+      <td>hidden_state_size</td>
+      <td>Size of the recurrent layer's hidden state</td>
+    </tr>
+    <tr>
+      <td>layer_type</td>
+      <td>Supported recurrent layers: gru, lstm</td>
+    </tr>
+    <tr>
+      <td>reset_hidden_state</td>
+      <td>Whether to reset the hidden state upon starting a new episode. This can be beneficial for environments that produce short episodes like MinigridMemory-S9.</td>
+    </tr>
+  </tbody>
+</table>
+
+#### General
+
+<table>
+  <tbody>
+    <tr>
+      <td>gamma</td>
+      <td>Discount factor</td>
+    </tr>
+    <tr>
+      <td>lamda</td>
+      <td>Regularization parameter used when calculating the Generalized Advantage Estimation (GAE)</td>
+    </tr>
+    <tr>
+      <td>updates</td>
+      <td>Number of cycles that the entire PPO algorithm is being executed.</td>
+    </tr>
+    <tr>
+      <td>n_workers</td>
+      <td>Number of environments that are used to sample training data</td>
+    </tr>
+    <tr>
+      <td>worker_steps</td>
+      <td>Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)</td>
+    </tr>
+    <tr>
+      <td>epochs</td>
+      <td>Number of times that the whole batch of data is used for optimization using PPO</td>
+    </tr>
+    <tr>
+      <td>n_mini_batch</td>
+      <td>Number of mini batches that are trained throughout one epoch</td>
+    </tr>
+    <tr>
+      <td>value_loss_coefficient</td>
+      <td>Multiplier of the value function loss to constrain it</td>
+    </tr>
+    <tr>
+      <td>hidden_layer_size</td>
+      <td>Number of hidden units in each linear hidden layer</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Schedules
+
+These schedules can be used to polynomially decay the learning rate, the entropy bonus coefficient and the clip range.
+
+<table>
+    <tbody>
+    <tr>
+      <td>learning_rate_schedule</td>
+      <td>The learning rate used by the AdamW optimizer</td>
+    </tr>
+    <tr>
+      <td>beta_schedule</td>
+      <td>Beta is the entropy bonus coefficient that is used to encourage exploration</td>
+    </tr>
+    <tr>
+      <td>clip_range_schedule</td>
+      <td>Strength of clipping optimizations done by the PPO algorithm</td>
+    </tr>
+  </tbody>
+</table>
 
 # Model Architecture
 
