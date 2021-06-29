@@ -86,15 +86,15 @@ class Buffer():
                         max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
             
             # Apply zero-padding to ensure that each sequence has the same length
-            # Therfore we can train batches of sequences in parallel instead of one episode at a time
+            # Therfore we can train batches of sequences in parallel instead of one sequence at a time
             for i, sequence in enumerate(sequences):
                 sequences[i] = self.pad_sequence(sequence, max_sequence_length)
 
-            # Stack sequences (target shape: (Sequence, Step, Data ...) and apply data to the samples dict
+            # Stack sequences (target shape: (Sequence, Step, Data ...) and apply data to the samples dictionary
             samples[key] = np.stack(sequences, axis=0)
 
             if (key == "hxs" or key == "cxs"):
-                # Select only the very first recurrent cell state of a sequence and add it to the samples
+                # Select only the very first recurrent cell state of a sequence and add it to the samples.
                 samples[key] = samples[key][:, 0]
 
         # If the sequence length is based on entire episodes, it will be as long as the longest episode.
