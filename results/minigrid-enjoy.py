@@ -61,6 +61,7 @@ def main():
         obs, reward, done, info = env.step(int(action))
         episode_rewards.append(reward)
     
+    images.append(env.render())
     print("Episode length: " + str(info["length"]))
     print("Episode reward: " + str(info["reward"]))
     
