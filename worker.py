@@ -4,6 +4,7 @@ from utils import create_env
 
 def worker_process(remote: multiprocessing.connection.Connection, env_name:str) -> None:
     """Executes the threaded interface to the environment.
+    
     Args:
         remote {multiprocessing.connection.Connection} -- Parent thread
         env_name {str} -- Name of the to be instantiated environment
