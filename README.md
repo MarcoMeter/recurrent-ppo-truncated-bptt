@@ -243,7 +243,7 @@ The code for plotting the results can be found in the results directory.
 
 
 
-## PoC
+## PoC Memory Task
 
 ![PoC Results](images/poc_result.svg)
 
