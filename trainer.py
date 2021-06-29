@@ -310,7 +310,7 @@ class PPOTrainer:
         return result
 
     def _save_model(self) -> None:
-        """Saves the model and the used training config to the models directory. The filename is based of the run id."""
+        """Saves the model and the used training config to the models directory. The filename is based on the run id."""
         if not os.path.exists("./models"):
             os.makedirs("./models")
         self.model.cpu()
