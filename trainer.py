@@ -313,7 +313,8 @@ class PPOTrainer:
                 result[key + "_std"] = np.std([info[key] for info in episode_info])
         return result
 
-    def close(self):
+    def close(self) -> None:
+        """Terminates the trainer and all related processes."""
         try:
             self.dummy_env.close()
         except:
