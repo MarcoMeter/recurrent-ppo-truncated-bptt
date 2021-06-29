@@ -18,7 +18,7 @@ class PPOTrainer:
 
         Args:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
-            run_id {str, optional} -- A tag used to save Tensorboard Summaries. Defaults to "run".
+            run_id {str, optional} -- A tag used to save Tensorboard Summaries and the trained model. Defaults to "run".
             device {torch.device, optional} -- Determines the training device. Defaults to cpu.
         """
         # Set variables
@@ -102,7 +102,7 @@ class PPOTrainer:
             episode_infos.extend(sampled_episode_info)
             episode_result = self._process_episode_info(episode_infos)
 
-            # Print training stats to console and Tensorboard
+            # Print training statistics
             if "success_percent" in episode_result:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success = {:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success_percent"],
@@ -128,7 +128,7 @@ class PPOTrainer:
         episode_infos = []
         # Sample actions from the model and collect experiences for training
         for t in range(self.config["worker_steps"]):
-            # Gradients can be omitted for sampling data
+            # Gradients can be omitted for sampling training data
             with torch.no_grad():
                 # Save the initial observations and recurrentl cell states
                 self.buffer.obs[:, t] = self.obs
