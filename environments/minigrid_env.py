@@ -5,6 +5,7 @@ import time
 from gym import spaces
 from gym_minigrid.wrappers import ViewSizeWrapper
 
+
 class Minigrid:
     def __init__(self):
         self._env = gym.make("MiniGrid-MemoryS9-v0")
@@ -52,8 +53,9 @@ class Minigrid:
         return obs, reward, done, info
 
     def render(self):
-        self._env.render(tile_size = 96)
+        img = self._env.render(tile_size = 96)
         time.sleep(0.5)
+        return img
 
     def close(self):
         self._env.close()
