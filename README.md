@@ -95,7 +95,7 @@ As a reinforcement learning engineer, one has to have high endurance. Therefore,
 
 #### Feeding None to nn.GRU/nn.LSTM
 
-We observed an **exploding value function**. This was due to unintentionally feeding None to the recurrent layer. In this case, PyTorch uses zeros for the hidden states as shown by its [source code](https://github.com/pytorch/pytorch/blob/8d50a4e326e10fe29e322753bb90be15546e5435/torch/nn/modules/rnn.py#L662).
+We observed an **exploding value function**. This was due to unintentionally feeding `None` to the recurrent layer. In this case, PyTorch uses zeros for the hidden states as shown by its [source code](https://github.com/pytorch/pytorch/blob/8d50a4e326e10fe29e322753bb90be15546e5435/torch/nn/modules/rnn.py#L662).
 
 ```python
 if hx is None:
