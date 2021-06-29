@@ -8,7 +8,7 @@ from gym_minigrid.wrappers import ViewSizeWrapper
 
 class Minigrid:
     def __init__(self):
-        self._env = gym.make("MiniGrid-MemoryS7-v0")
+        self._env = gym.make("MiniGrid-MemoryS9-v0")
         # Decrease the agent's view size to raise the agent's memory challenge
         # On MiniGrid-Memory-S7-v0, the default view size is too large to actually demand a recurrent policy.
         self._env = ViewSizeWrapper(self._env, 3)
