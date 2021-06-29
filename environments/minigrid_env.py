@@ -5,9 +5,10 @@ import time
 from gym import spaces
 from gym_minigrid.wrappers import ViewSizeWrapper
 
+
 class Minigrid:
     def __init__(self):
-        self._env = gym.make("MiniGrid-MemoryS9-v0")
+        self._env = gym.make("MiniGrid-MemoryS7-v0")
         # Decrease the agent's view size to raise the agent's memory challenge
         # On MiniGrid-Memory-S7-v0, the default view size is too large to actually demand a recurrent policy.
         self._env = ViewSizeWrapper(self._env, 3)
@@ -52,8 +53,9 @@ class Minigrid:
         return obs, reward, done, info
 
     def render(self):
-        self._env.render(tile_size = 96)
+        img = self._env.render(tile_size = 96)
         time.sleep(0.5)
+        return img
 
     def close(self):
         self._env.close()
