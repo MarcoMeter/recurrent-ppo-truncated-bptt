@@ -23,10 +23,10 @@ class ActorCriticModel(nn.Module):
             # Case: visual observation is available
             # Visual encoder made of 3 convolutional layers
             self.conv1 = nn.Conv2d(observation_space.shape[0], 32, 8, 4,)
-            nn.init.orthogonal_(self.conv1.weight, np.sqrt(2))
             self.conv2 = nn.Conv2d(32, 64, 4, 2, 0)
+            self.conv3 = nn.Conv2d(64, 64, 3, 1, 0)
+            nn.init.orthogonal_(self.conv1.weight, np.sqrt(2))
             nn.init.orthogonal_(self.conv2.weight, np.sqrt(2))
-            self.conv3 = nn.Conv2d(64, 64, 3, 1, 0)            
             nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
             # Compute output size of convolutional layers
             self.conv_out_size = self.get_conv_output(observation_space.shape)

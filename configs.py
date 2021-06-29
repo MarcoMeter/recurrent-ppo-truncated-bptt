@@ -51,18 +51,18 @@ def minigrid_config():
         "worker_steps": 256,
         "n_mini_batch": 8,
         "value_loss_coefficient": 0.1,
-        "hidden_layer_size": 256,
+        "hidden_layer_size": 512,
         "recurrence": 
             {
-            "sequence_length": 12,
-            "hidden_state_size": 128,
+            "sequence_length": 8,
+            "hidden_state_size": 256,
             "layer_type": "lstm",
             "reset_hidden_state": False
             },
         "learning_rate_schedule":
             {
-            "initial": 3.0e-4,
-            "final": 3.0e-6,
+            "initial": 2.0e-4,
+            "final": 2.0e-4,
             "power": 1.0,
             "max_decay_steps": 300
             },
@@ -78,7 +78,7 @@ def minigrid_config():
             "initial": 0.2,
             "final": 0.2,
             "power": 1.0,
-            "max_decay_steps": 1000
+            "max_decay_steps": 300
             }
     }
 
