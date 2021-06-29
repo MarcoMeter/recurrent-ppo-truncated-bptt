@@ -163,7 +163,7 @@ This is rather considered as a feature and not a bug. For environments that prod
     </tr>
     <tr>
       <td>updates</td>
-      <td>Number of cycles that the entire PPO algorithm is being executed.</td>
+      <td>Number of cycles that the entire PPO algorithm is being executed</td>
     </tr>
     <tr>
       <td>n_workers</td>
@@ -217,7 +217,7 @@ These schedules can be used to polynomially decay the learning rate, the entropy
 
 ![Model Architecture](images/model.svg)
 
-The figure above illustrates the model architecture in the case of training Minigrid. The visual observation is processed by 3 convolutional layers. The flattened result is then divided into sequences before feeding it to the recurrent layer. After passing the recurrent layer's result to one hidden layer, the network is split into two streams. One computes the value function and the other one the policy. All layers use the ReLu activation.
+The figure above illustrates the model architecture in the case of training Minigrid. The visual observation is processed by 3 convolutional layers. The flattened result is then divided into sequences before feeding it to the recurrent layer. After passing the recurrent layer's result to one hidden layer, the network is split into two streams. One computes the value function and the other one the policy. All layers use the ReLU activation.
 
 In the case of training an environment that utilizes vector observations only, the visual encoder is omitted and the observation is fed directly to the recurrent layer.
 
@@ -227,7 +227,7 @@ Follow these steps to train another environment:
 
 1. Extend the create_env() function in utils.py by adding another if-statement that queries the environment's name
 2. At this point you could simply use gym.make() or use a custom environment that builds on top of the gym interface.
-3. Adjust the "env" key inside the config dictionary to store the name of the new environment
+3. Adjust the "env" key inside the config dictionary to match the name of the new environment
 
 # Tensorboard
 
