@@ -35,7 +35,7 @@ class ActorCriticModel(nn.Module):
             # Case: vector observation is available
             in_features_next_layer = observation_space.shape[0]
 
-        # Recurrent Layer (GRU or LSTM)
+        # Recurrent layer (GRU or LSTM)
         if self.recurrence["layer_type"] == "gru":
             self.recurrent_layer = nn.GRU(in_features_next_layer, self.recurrence["hidden_state_size"], batch_first=True)
         elif self.recurrence["layer_type"] == "lstm":
@@ -60,12 +60,12 @@ class ActorCriticModel(nn.Module):
         self.lin_value = nn.Linear(self.hidden_size, self.hidden_size)
         nn.init.orthogonal_(self.lin_value.weight, np.sqrt(2))
 
-        # Outputs / Model Heads
+        # Outputs / Model heads
         # Policy
         self.policy = nn.Linear(self.hidden_size, action_space_shape[0])
         nn.init.orthogonal_(self.policy.weight, np.sqrt(0.01))
 
-        # Value Function
+        # Value function
         self.value = nn.Linear(self.hidden_size, 1)
         nn.init.orthogonal_(self.value.weight, 1)
 
@@ -124,7 +124,7 @@ class ActorCriticModel(nn.Module):
         h_policy = F.relu(self.lin_policy(h))
         # Feed hidden layer (value function)
         h_value = F.relu(self.lin_value(h))
-        # Head: Value Function
+        # Head: Value function
         value = self.value(h_value).reshape(-1)
         # Head: Policy
         pi = Categorical(logits=self.policy(h_policy))

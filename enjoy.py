@@ -21,7 +21,7 @@ def main():
     # Inference device
     device = torch.device("cpu")
 
-    # Load Model and Config
+    # Load model and config
     state_dict, config = pickle.load(open(model_path, "rb"))
 
     # Instantiate environment
