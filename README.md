@@ -21,9 +21,6 @@ This repository features a PyTorch based implementation of PPO using a recurrent
 
 # Documentation Contents
 
-- [Recurrent Proximal Policy Optimization using Truncated BPTT](#recurrent-proximal-policy-optimization-using-truncated-bptt)
-- [Features](#features)
-- [Documentation Contents](#documentation-contents)
 - [Installation](#installation)
 - [Train a model](#train-a-model)
 - [Enjoy a model](#enjoy-a-model)
