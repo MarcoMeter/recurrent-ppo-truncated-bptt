@@ -19,6 +19,34 @@ This repository features a PyTorch based implementation of PPO using a recurrent
 - Tensorboard
 - Enjoy (watch a trained agent play)
 
+# Documentation Contents
+
+- [Recurrent Proximal Policy Optimization using Truncated BPTT](#recurrent-proximal-policy-optimization-using-truncated-bptt)
+- [Features](#features)
+- [Documentation Contents](#documentation-contents)
+- [Installation](#installation)
+- [Train a model](#train-a-model)
+- [Enjoy a model](#enjoy-a-model)
+- [Recurrent Policy](#recurrent-policy)
+  - [Implementation Concept](#implementation-concept)
+      - [Flow of processing the training data](#flow-of-processing-the-training-data)
+  - [Found & Fixed Bugs](#found--fixed-bugs)
+      - [Feeding None to nn.GRU/nn.LSTM](#feeding-none-to-nngrunnlstm)
+      - [Reshaping an Entire Batch into Sequences](#reshaping-an-entire-batch-into-sequences)
+      - [Hidden States were not reset](#hidden-states-were-not-reset)
+- [Hyperparameters (configs.py)](#hyperparameters-configspy)
+      - [Recurrence](#recurrence)
+      - [General](#general)
+      - [Schedules](#schedules)
+- [Model Architecture](#model-architecture)
+- [Add environment](#add-environment)
+- [Tensorboard](#tensorboard)
+- [Results](#results)
+  - [MinigridMemory-S9](#minigridmemory-s9)
+  - [MinigridMemoryRandom-S17](#minigridmemoryrandom-s17)
+  - [PoC Memory Task](#poc-memory-task)
+  - [Cartpole Masked Velocity](#cartpole-masked-velocity)
+
 # Installation
 
 Install [PyTorch](https://pytorch.org/get-started/locally/) 1.8.1 depending on your platform.
