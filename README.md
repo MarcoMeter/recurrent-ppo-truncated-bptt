@@ -235,13 +235,19 @@ During training, tensorboard summaries are saved to `summaries/run-id/timestamp`
 
 Run `tensorboad --logdir=summaries` to watch the training statistics in your browser using the URL [http://localhost:6006/](http://localhost:6006/).
 
-# Plotting Results
+# Results
 
 The code for plotting the results can be found in the results directory.
 
 ## MinigridMemory-S9
 
 ![Minigrid Memory Result](images/minigrid_result.svg)
+
+## MinigridMemoryRandom-S17
+
+(only trained on MinigridMemory-S9 using unlimited seeds)
+
+![Minigrid Memory S17](images/MiniGrid-S17-Random.gif)
 
 ## PoC Memory Task
 
