@@ -1,3 +1,5 @@
+"""The purpose of this script is to render one minigrid episode to a gif."""
+
 import parent_path
 import numpy as np
 import pickle
