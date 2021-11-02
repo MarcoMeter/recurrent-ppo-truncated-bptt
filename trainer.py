@@ -58,7 +58,7 @@ class PPOTrainer:
         self.workers = [Worker(self.config["env"]) for w in range(self.config["n_workers"])]
 
         # Setup observation placeholder   
-        self.obs = np.zeros((self.config["n_workers"],) + observation_space.shape, dtype=np.float32)
+        self.obs = torch.zeros((self.config["n_workers"],) + observation_space.shape, dtype=torch.float32)
 
         # Setup initial recurrent cell states (LSTM: tuple(tensor, tensor) or GRU: tensor)
         hxs, cxs = self.model.init_recurrent_cell_states(self.config["n_workers"], self.device)
@@ -74,7 +74,7 @@ class PPOTrainer:
         # Grab initial observations and store them in their respective placeholder location
         for w, worker in enumerate(self.workers):
             obs = worker.child.recv()
-            self.obs[w] = obs
+            self.obs[w] = torch.tensor(obs, dtype=torch.float32)
 
     def run_training(self) -> None:
         """Runs the entire training logic from sampling data to optimizing the model."""
@@ -131,7 +131,7 @@ class PPOTrainer:
             # Gradients can be omitted for sampling training data
             with torch.no_grad():
                 # Save the initial observations and recurrentl cell states
-                self.buffer.obs[:, t] = torch.tensor(self.obs, dtype=torch.float32)
+                self.buffer.obs[:, t] = self.obs
                 if self.recurrence["layer_type"] == "gru":
                     self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu()
                 elif self.recurrence["layer_type"] == "lstm":
@@ -172,7 +172,7 @@ class PPOTrainer:
                             self.recurrent_cell[0][:, w] = hxs
                             self.recurrent_cell[1][:, w] = cxs
                 # Store latest observations
-                self.obs[w] = obs
+                self.obs[w] = torch.tensor(obs, dtype=torch.float32)
                             
         # Calculate advantages
         _, last_value, _ = self.model(self.obs, self.recurrent_cell, self.device)

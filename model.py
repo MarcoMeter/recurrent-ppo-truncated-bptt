@@ -69,11 +69,11 @@ class ActorCriticModel(nn.Module):
         self.value = nn.Linear(self.hidden_size, 1)
         nn.init.orthogonal_(self.value.weight, 1)
 
-    def forward(self, obs:np.ndarray, recurrent_cell:torch.tensor, device:torch.device, sequence_length:int=1):
+    def forward(self, obs:torch.tensor, recurrent_cell:torch.tensor, device:torch.device, sequence_length:int=1):
         """Forward pass of the model
 
         Args:
-            obs {np.ndarray/torch.tensor} -- Batch of observations
+            obs {torch.tensor} -- Batch of observations
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer
             device {torch.device} -- Current device
             sequence_length {int} -- Length of the fed sequences. Defaults to 1.
@@ -83,18 +83,17 @@ class ActorCriticModel(nn.Module):
             {torch.tensor} -- Value Function: Value
             {tuple} -- Recurrent cell
         """
+        # Set observation as input to the model
+        h = obs
         # Forward observation encoder
         if len(self.observation_space_shape) > 1:
-            vis_obs = torch.tensor(obs, dtype=torch.float32, device=device)     # Convert vis_obs to tensor
-            batch_size = vis_obs.size()[0]
+            batch_size = h.size()[0]
             # Propagate input through the visual encoder
-            h = F.relu(self.conv1(vis_obs))
+            h = F.relu(self.conv1(h))
             h = F.relu(self.conv2(h))
             h = F.relu(self.conv3(h))
             # Flatten the output of the convolutional layers
             h = h.reshape((batch_size, -1))
-        else:
-            h = torch.tensor(obs, dtype=torch.float32, device=device)           # Convert vec_obs to tensor
 
         # Forward reccurent layer (GRU or LSTM)
         if sequence_length == 1:
