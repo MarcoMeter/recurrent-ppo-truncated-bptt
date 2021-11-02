@@ -47,7 +47,7 @@ class Buffer():
             "obs": self.obs,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            "loss_mask": np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
+            "loss_mask": torch.ones((self.n_workers, self.worker_steps), dtype=torch.float32)
         }
         
         # Add collected recurrent cell states to the dictionary
@@ -171,11 +171,11 @@ class Buffer():
             start = end
             yield mini_batch
 
-    def calc_advantages(self, last_value:np.ndarray, gamma:float, lamda:float) -> None:
+    def calc_advantages(self, last_value:torch.tensor, gamma:float, lamda:float) -> None:
         """Generalized advantage estimation (GAE)
 
         Arguments:
-            last_value {np.ndarray} -- Value of the last agent's state
+            last_value {torch.tensor} -- Value of the last agent's state
             gamma {float} -- Discount factor
             lamda {float} -- GAE regularization parameter
         """

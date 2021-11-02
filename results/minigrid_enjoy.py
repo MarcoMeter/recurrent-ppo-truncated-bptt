@@ -15,8 +15,8 @@ def main():
     # Command line arguments via docopt
     _USAGE = """
     Usage:
-        enjoy.py [options]
-        enjoy.py --help
+        migrid_enjoy.py [options]
+        migrid_enjoy.py --help
     
     Options:
         --model=<path>              Specifies the path to the trained model [default: ./models/minigrid.nn].
