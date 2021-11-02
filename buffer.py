@@ -25,7 +25,7 @@ class Buffer():
 
         # Initialize the buffer's data storage
         self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
-        self.actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
+        self.actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.int32)
         self.dones = np.zeros((self.n_workers, self.worker_steps), dtype=np.bool)
         self.obs = torch.zeros((self.n_workers, self.worker_steps) + observation_space.shape, dtype=torch.float32)
         self.hxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size), dtype=torch.float32)
