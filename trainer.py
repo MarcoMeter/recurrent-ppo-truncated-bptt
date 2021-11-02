@@ -176,7 +176,7 @@ class PPOTrainer:
                             
         # Calculate advantages
         _, last_value, _ = self.model(self.obs, self.recurrent_cell, self.device)
-        self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.config["gamma"], self.config["lamda"])
+        self.buffer.calc_advantages(last_value.cpu().data, self.config["gamma"], self.config["lamda"])
 
         return episode_infos
 
