@@ -106,11 +106,11 @@ class PPOTrainer:
             if "success_percent" in episode_result:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success = {:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success_percent"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
             else:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
             print(result)
 
             # Write training statistics to tensorboard
@@ -131,20 +131,20 @@ class PPOTrainer:
             # Gradients can be omitted for sampling training data
             with torch.no_grad():
                 # Save the initial observations and recurrentl cell states
-                self.buffer.obs[:, t] = self.obs
+                self.buffer.obs[:, t] = torch.tensor(self.obs, dtype=torch.float32)
                 if self.recurrence["layer_type"] == "gru":
-                    self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
+                    self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu()
                 elif self.recurrence["layer_type"] == "lstm":
-                    self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
-                    self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
+                    self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu()
+                    self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu()
 
                 # Forward the model to retrieve the policy, the states' value and the recurrent cell states
                 policy, value, self.recurrent_cell = self.model(self.obs, self.recurrent_cell, self.device)
-                self.buffer.values[:, t] = value.cpu().data.numpy()
+                self.buffer.values[:, t] = value.cpu().data
 
                 # Sample actions
                 action = policy.sample()
-                log_prob = policy.log_prob(action).cpu().data.numpy()
+                log_prob = policy.log_prob(action).cpu().data
                 action = action.cpu().data.numpy()
                 self.buffer.actions[:, t] = action
                 self.buffer.log_probs[:, t] = log_prob
@@ -270,8 +270,8 @@ class PPOTrainer:
         self.writer.add_scalar("losses/value_loss", training_stats[1], update)
         self.writer.add_scalar("losses/entropy", training_stats[3], update)
         self.writer.add_scalar("training/sequence_length", self.buffer.true_sequence_length, update)
-        self.writer.add_scalar("training/value_mean", np.mean(self.buffer.values), update)
-        self.writer.add_scalar("training/advantage_mean", np.mean(self.buffer.advantages), update)
+        self.writer.add_scalar("training/value_mean", torch.mean(self.buffer.values), update)
+        self.writer.add_scalar("training/advantage_mean", torch.mean(self.buffer.advantages), update)
 
     @staticmethod
     def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
