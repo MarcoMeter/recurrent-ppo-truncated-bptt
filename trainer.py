@@ -58,7 +58,6 @@ class PPOTrainer:
         self.workers = [Worker(self.config["env"]) for w in range(self.config["n_workers"])]
 
         # Setup observation placeholder   
-        # self.obs = torch.zeros((self.config["n_workers"],) + observation_space.shape, dtype=torch.float32)
         self.obs = np.zeros((self.config["n_workers"],) + observation_space.shape, dtype=np.float32)
 
         # Setup initial recurrent cell states (LSTM: tuple(tensor, tensor) or GRU: tensor)

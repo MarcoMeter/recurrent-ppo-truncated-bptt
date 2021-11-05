@@ -72,13 +72,13 @@ class Buffer():
                 start_index = 0
                 for done_index in episode_done_indices[w]:
                     # Split trajectory into episodes
-                    episode = torch.tensor(value[w, start_index:done_index + 1])
+                    episode = value[w, start_index:done_index + 1]
                     start_index = done_index + 1
                     # Split episodes into sequences
                     if self.sequence_length > 0:
                         for start in range(0, len(episode), self.sequence_length):
                             end = start + self.sequence_length
-                            sequences.append(torch.tensor(episode[start:end]))
+                            sequences.append(episode[start:end])
                         max_sequence_length = self.sequence_length
                     else:
                         # If the sequence length is not set to a proper value, sequences will be based on whole episodes
@@ -176,13 +176,14 @@ class Buffer():
             gamma {float} -- Discount factor
             lamda {float} -- GAE regularization parameter
         """
-        last_advantage = 0
-        mask = torch.tensor(self.dones).logical_not() # mask values on terminal states
-        rewards = torch.tensor(self.rewards)
-        for t in reversed(range(self.worker_steps)):
-            last_value = last_value * mask[:, t]
-            last_advantage = last_advantage * mask[:, t]
-            delta = rewards[:, t] + gamma * last_value - self.values[:, t]
-            last_advantage = delta + gamma * lamda * last_advantage
-            self.advantages[:, t] = last_advantage
-            last_value = self.values[:, t]
+        with torch.no_grad():
+            last_advantage = 0
+            mask = torch.tensor(self.dones).logical_not() # mask values on terminal states
+            rewards = torch.tensor(self.rewards)
+            for t in reversed(range(self.worker_steps)):
+                last_value = last_value * mask[:, t]
+                last_advantage = last_advantage * mask[:, t]
+                delta = rewards[:, t] + gamma * last_value - self.values[:, t]
+                last_advantage = delta + gamma * lamda * last_advantage
+                self.advantages[:, t] = last_advantage
+                last_value = self.values[:, t]
