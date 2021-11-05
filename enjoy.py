@@ -20,6 +20,7 @@ def main():
 
     # Inference device
     device = torch.device("cpu")
+    torch.set_default_tensor_type("torch.FloatTensor")
 
     # Load model and config
     state_dict, config = pickle.load(open(model_path, "rb"))
@@ -49,7 +50,7 @@ def main():
         # Render environment
         env.render()
         # Forward model
-        policy, value, recurrent_cell = model(np.expand_dims(obs, 0), recurrent_cell, device, 1)
+        policy, value, recurrent_cell = model(torch.tensor(np.expand_dims(obs, 0)), recurrent_cell, device, 1)
         # Sample action
         action = policy.sample().cpu().numpy()
         # Step environemnt

@@ -73,8 +73,7 @@ class PPOTrainer:
             worker.child.send(("reset", None))
         # Grab initial observations and store them in their respective placeholder location
         for w, worker in enumerate(self.workers):
-            obs = worker.child.recv()
-            self.obs[w] = obs
+            self.obs[w] = worker.child.recv()
 
     def run_training(self) -> None:
         """Runs the entire training logic from sampling data to optimizing the model."""
@@ -106,11 +105,11 @@ class PPOTrainer:
             if "success_percent" in episode_result:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} success = {:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], episode_result["success_percent"],
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
             else:
                 result = "{:4} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} pi_loss={:3f} v_loss={:3f} entropy={:.3f} loss={:3f} value={:.3f} advantage={:.3f}".format(
                     update, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"], 
-                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], np.mean(self.buffer.values), np.mean(self.buffer.advantages))
+                    training_stats[0], training_stats[1], training_stats[3], training_stats[2], torch.mean(self.buffer.values), torch.mean(self.buffer.advantages))
             print(result)
 
             # Write training statistics to tensorboard
@@ -131,27 +130,26 @@ class PPOTrainer:
             # Gradients can be omitted for sampling training data
             with torch.no_grad():
                 # Save the initial observations and recurrentl cell states
-                self.buffer.obs[:, t] = self.obs
+                self.buffer.obs[:, t] = torch.tensor(self.obs)
                 if self.recurrence["layer_type"] == "gru":
-                    self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
+                    self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0)
                 elif self.recurrence["layer_type"] == "lstm":
-                    self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
-                    self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
+                    self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0)
+                    self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0)
 
                 # Forward the model to retrieve the policy, the states' value and the recurrent cell states
-                policy, value, self.recurrent_cell = self.model(self.obs, self.recurrent_cell, self.device)
-                self.buffer.values[:, t] = value.cpu().data.numpy()
+                policy, value, self.recurrent_cell = self.model(torch.tensor(self.obs), self.recurrent_cell, self.device)
+                self.buffer.values[:, t] = value
 
                 # Sample actions
                 action = policy.sample()
-                log_prob = policy.log_prob(action).cpu().data.numpy()
-                action = action.cpu().data.numpy()
+                log_prob = policy.log_prob(action)
                 self.buffer.actions[:, t] = action
                 self.buffer.log_probs[:, t] = log_prob
 
             # Send actions to the environments
             for w, worker in enumerate(self.workers):
-                worker.child.send(("step", self.buffer.actions[w, t]))
+                worker.child.send(("step", self.buffer.actions[w, t].cpu().numpy()))
 
             # Retrieve step results from the environments
             for w, worker in enumerate(self.workers):
@@ -175,8 +173,8 @@ class PPOTrainer:
                 self.obs[w] = obs
                             
         # Calculate advantages
-        _, last_value, _ = self.model(self.obs, self.recurrent_cell, self.device)
-        self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.config["gamma"], self.config["lamda"])
+        _, last_value, _ = self.model(torch.tensor(self.obs), self.recurrent_cell, self.device)
+        self.buffer.calc_advantages(last_value, self.config["gamma"], self.config["lamda"])
 
         return episode_infos
 
@@ -270,8 +268,8 @@ class PPOTrainer:
         self.writer.add_scalar("losses/value_loss", training_stats[1], update)
         self.writer.add_scalar("losses/entropy", training_stats[3], update)
         self.writer.add_scalar("training/sequence_length", self.buffer.true_sequence_length, update)
-        self.writer.add_scalar("training/value_mean", np.mean(self.buffer.values), update)
-        self.writer.add_scalar("training/advantage_mean", np.mean(self.buffer.advantages), update)
+        self.writer.add_scalar("training/value_mean", torch.mean(self.buffer.values), update)
+        self.writer.add_scalar("training/advantage_mean", torch.mean(self.buffer.advantages), update)
 
     @staticmethod
     def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:

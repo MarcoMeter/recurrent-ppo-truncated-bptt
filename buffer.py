@@ -25,14 +25,14 @@ class Buffer():
 
         # Initialize the buffer's data storage
         self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
-        self.actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.int32)
+        self.actions = torch.zeros((self.n_workers, self.worker_steps), dtype=torch.long)
         self.dones = np.zeros((self.n_workers, self.worker_steps), dtype=np.bool)
-        self.obs = np.zeros((self.n_workers, self.worker_steps) + observation_space.shape, dtype=np.float32)
-        self.hxs = np.zeros((self.n_workers, self.worker_steps, hidden_state_size), dtype=np.float32)
-        self.cxs = np.zeros((self.n_workers, self.worker_steps, hidden_state_size), dtype=np.float32)
-        self.log_probs = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
-        self.values = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
-        self.advantages = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
+        self.obs = torch.zeros((self.n_workers, self.worker_steps) + observation_space.shape)
+        self.hxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size))
+        self.cxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size))
+        self.log_probs = torch.zeros((self.n_workers, self.worker_steps))
+        self.values = torch.zeros((self.n_workers, self.worker_steps))
+        self.advantages = torch.zeros((self.n_workers, self.worker_steps))
 
     def prepare_batch_dict(self) -> None:
         """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
@@ -47,7 +47,7 @@ class Buffer():
             "obs": self.obs,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            "loss_mask": np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
+            "loss_mask": torch.ones((self.n_workers, self.worker_steps), dtype=torch.float32)
         }
         
         # Add collected recurrent cell states to the dictionary
@@ -91,7 +91,7 @@ class Buffer():
                 sequences[i] = self.pad_sequence(sequence, max_sequence_length)
 
             # Stack sequences (target shape: (Sequence, Step, Data ...) and apply data to the samples dictionary
-            samples[key] = np.stack(sequences, axis=0)
+            samples[key] = torch.stack(sequences, axis=0)
 
             if (key == "hxs" or key == "cxs"):
                 # Select only the very first recurrent cell state of a sequence and add it to the samples.
@@ -106,7 +106,7 @@ class Buffer():
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.device)
+            self.samples_flat[key] = value
 
     def pad_sequence(self, sequence:np.ndarray, target_length:int) -> np.ndarray:
         """Pads a sequence to the target length using zeros.
@@ -116,11 +116,8 @@ class Buffer():
             target_length {int} -- The desired length of the sequence
 
         Returns:
-            {np.ndarray} -- Returns the padded sequence
+            {torch.tensor} -- Returns the padded sequence
         """
-        # If a tensor is provided, convert it to a numpy array
-        if isinstance(sequence, torch.Tensor):
-            sequence = sequence.numpy()
         # Determine the number of zeros that have to be added to the sequence
         delta_length = target_length - len(sequence)
         # If the sequence is already as long as the target length, don't pad
@@ -129,11 +126,11 @@ class Buffer():
         # Construct array of zeros
         if len(sequence.shape) > 1:
             # Case: pad multi-dimensional array (e.g. visual observation)
-            padding = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
+            padding = torch.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
         else:
-            padding = np.zeros(delta_length, dtype=sequence.dtype)
+            padding = torch.zeros(delta_length, dtype=sequence.dtype)
         # Concatenate the zeros to the sequence
-        return np.concatenate((sequence, padding), axis=0)
+        return torch.cat((sequence, padding), axis=0)
 
     def recurrent_mini_batch_generator(self) -> dict:
         """A recurrent generator that returns a dictionary providing training data arranged in mini batches.
@@ -152,7 +149,7 @@ class Buffer():
             # Add the remainder if the sequence count and the number of mini batches do not share a common divider
             num_sequences_per_batch[i] += 1
         # Prepare indices, but only shuffle the sequence indices and not the entire batch.
-        indices = np.arange(0, num_sequences * self.true_sequence_length).reshape(num_sequences, self.true_sequence_length)
+        indices = torch.arange(0, num_sequences * self.true_sequence_length).reshape(num_sequences, self.true_sequence_length)
         sequence_indices = torch.randperm(num_sequences)
         # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 
@@ -171,20 +168,22 @@ class Buffer():
             start = end
             yield mini_batch
 
-    def calc_advantages(self, last_value:np.ndarray, gamma:float, lamda:float) -> None:
+    def calc_advantages(self, last_value:torch.tensor, gamma:float, lamda:float) -> None:
         """Generalized advantage estimation (GAE)
 
         Arguments:
-            last_value {np.ndarray} -- Value of the last agent's state
+            last_value {torch.tensor} -- Value of the last agent's state
             gamma {float} -- Discount factor
             lamda {float} -- GAE regularization parameter
         """
-        last_advantage = 0
-        for t in reversed(range(self.worker_steps)):
-            mask = 1.0 - self.dones[:, t] # mask value on a terminal state (i.e. done)
-            last_value = last_value * mask
-            last_advantage = last_advantage * mask
-            delta = self.rewards[:, t] + gamma * last_value - self.values[:, t]
-            last_advantage = delta + gamma * lamda * last_advantage
-            self.advantages[:, t] = last_advantage
-            last_value = self.values[:, t]
+        with torch.no_grad():
+            last_advantage = 0
+            mask = torch.tensor(self.dones).logical_not() # mask values on terminal states
+            rewards = torch.tensor(self.rewards)
+            for t in reversed(range(self.worker_steps)):
+                last_value = last_value * mask[:, t]
+                last_advantage = last_advantage * mask[:, t]
+                delta = rewards[:, t] + gamma * last_value - self.values[:, t]
+                last_advantage = delta + gamma * lamda * last_advantage
+                self.advantages[:, t] = last_advantage
+                last_value = self.values[:, t]
