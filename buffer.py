@@ -25,14 +25,14 @@ class Buffer():
 
         # Initialize the buffer's data storage
         self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
-        self.actions = np.zeros((self.n_workers, self.worker_steps), dtype=np.int32)
+        self.actions = torch.zeros((self.n_workers, self.worker_steps), dtype=torch.long)
         self.dones = np.zeros((self.n_workers, self.worker_steps), dtype=np.bool)
-        self.obs = torch.zeros((self.n_workers, self.worker_steps) + observation_space.shape, dtype=torch.float32)
-        self.hxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size), dtype=torch.float32)
-        self.cxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size), dtype=torch.float32)
-        self.log_probs = torch.zeros((self.n_workers, self.worker_steps), dtype=torch.float32)
-        self.values = torch.zeros((self.n_workers, self.worker_steps), dtype=torch.float32)
-        self.advantages = torch.zeros((self.n_workers, self.worker_steps), dtype=torch.float32)
+        self.obs = torch.zeros((self.n_workers, self.worker_steps) + observation_space.shape)
+        self.hxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size))
+        self.cxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size))
+        self.log_probs = torch.zeros((self.n_workers, self.worker_steps))
+        self.values = torch.zeros((self.n_workers, self.worker_steps))
+        self.advantages = torch.zeros((self.n_workers, self.worker_steps))
 
     def prepare_batch_dict(self) -> None:
         """Flattens the training samples and stores them inside a dictionary. Due to using a recurrent policy,
