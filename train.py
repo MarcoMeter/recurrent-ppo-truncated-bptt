@@ -20,8 +20,11 @@ def main():
 
     if not cpu:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.is_available():
+            torch.set_default_tensor_type("torch.cuda.FloatTensor")
     else:
         device = torch.device("cpu")
+        torch.set_default_tensor_type("torch.FloatTensor")
 
     # Initialize the PPO trainer and commence training
     trainer = PPOTrainer(cartpole_masked_config(), run_id=run_id, device=device)

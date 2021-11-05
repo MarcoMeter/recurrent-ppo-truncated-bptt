@@ -72,13 +72,13 @@ class Buffer():
                 start_index = 0
                 for done_index in episode_done_indices[w]:
                     # Split trajectory into episodes
-                    episode = torch.FloatTensor(value[w, start_index:done_index + 1])
+                    episode = torch.tensor(value[w, start_index:done_index + 1])
                     start_index = done_index + 1
                     # Split episodes into sequences
                     if self.sequence_length > 0:
                         for start in range(0, len(episode), self.sequence_length):
                             end = start + self.sequence_length
-                            sequences.append(torch.FloatTensor(episode[start:end]))
+                            sequences.append(torch.tensor(episode[start:end]))
                         max_sequence_length = self.sequence_length
                     else:
                         # If the sequence length is not set to a proper value, sequences will be based on whole episodes
@@ -116,11 +116,8 @@ class Buffer():
             target_length {int} -- The desired length of the sequence
 
         Returns:
-            {np.ndarray} -- Returns the padded sequence
+            {torch.tensor} -- Returns the padded sequence
         """
-        # If a tensor is provided, convert it to a numpy array
-        # if isinstance(sequence, torch.Tensor):
-        #    sequence = sequence.numpy()
         # Determine the number of zeros that have to be added to the sequence
         delta_length = target_length - len(sequence)
         # If the sequence is already as long as the target length, don't pad
@@ -129,9 +126,9 @@ class Buffer():
         # Construct array of zeros
         if len(sequence.shape) > 1:
             # Case: pad multi-dimensional array (e.g. visual observation)
-            padding = torch.zeros(((delta_length,) + sequence.shape[1:]), dtype=torch.float32)
+            padding = torch.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
         else:
-            padding = torch.zeros(delta_length, dtype=torch.float32)
+            padding = torch.zeros(delta_length, dtype=sequence.dtype)
         # Concatenate the zeros to the sequence
         return torch.cat((sequence, padding), axis=0)
 
@@ -152,7 +149,7 @@ class Buffer():
             # Add the remainder if the sequence count and the number of mini batches do not share a common divider
             num_sequences_per_batch[i] += 1
         # Prepare indices, but only shuffle the sequence indices and not the entire batch.
-        indices = np.arange(0, num_sequences * self.true_sequence_length).reshape(num_sequences, self.true_sequence_length)
+        indices = torch.arange(0, num_sequences * self.true_sequence_length).reshape(num_sequences, self.true_sequence_length)
         sequence_indices = torch.randperm(num_sequences)
         # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 
@@ -181,11 +178,10 @@ class Buffer():
         """
         last_advantage = 0
         mask = torch.tensor(self.dones).logical_not() # mask values on terminal states
-        rewards = torch.tensor(self.rewards, dtype = torch.float32)
+        rewards = torch.tensor(self.rewards)
         for t in reversed(range(self.worker_steps)):
-            mask = 1.0 - self.dones[:, t] # mask value on a terminal state (i.e. done)
-            last_value = last_value * mask
-            last_advantage = last_advantage * mask
+            last_value = last_value * mask[:, t]
+            last_advantage = last_advantage * mask[:, t]
             delta = rewards[:, t] + gamma * last_value - self.values[:, t]
             last_advantage = delta + gamma * lamda * last_advantage
             self.advantages[:, t] = last_advantage
