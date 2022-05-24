@@ -19,8 +19,28 @@ This repository features a PyTorch based implementation of PPO using a recurrent
 - Tensorboard
 - Enjoy (watch a trained agent play)
 
+# Citing this Work
+
+```
+@misc{Pleines2022,
+  doi = {10.48550/ARXIV.2205.11104},
+  url = {https://arxiv.org/abs/2205.11104},
+  author = {Pleines, Marco and Pallasch, Matthias and Zimmer, Frank and Preuss, Mike},
+  title = {Generalization, Mayhems and Limits in Recurrent Proximal Policy Optimization},
+  publisher = {arXiv},
+  journal   = {CoRR},
+  eprinttype = {arXiv},
+  eprint    = {2205.11104},
+  year = {2022},
+}
+```
+
 # Documentation Contents
 
+- [Recurrent Proximal Policy Optimization using Truncated BPTT](#recurrent-proximal-policy-optimization-using-truncated-bptt)
+- [Features](#features)
+- [Citing this Work](#citing-this-work)
+- [Documentation Contents](#documentation-contents)
 - [Installation](#installation)
 - [Train a model](#train-a-model)
 - [Enjoy a model](#enjoy-a-model)
