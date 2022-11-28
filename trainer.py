@@ -218,7 +218,8 @@ class PPOTrainer:
         policy, value, _ = self.model(samples["obs"], recurrent_cell, self.device, self.recurrence["sequence_length"])
 
         # Compute policy surrogates to establish the policy loss
-        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        advantages_unpaddedd = torch.masked_select(samples["advantages"], samples["loss_mask"])
+        normalized_advantage = (samples["advantages"] - advantages_unpaddedd.mean()) / (advantages_unpaddedd.std() + 1e-8)
         log_probs = policy.log_prob(samples["actions"])
         ratio = torch.exp(log_probs - samples["log_probs"])
         surr1 = ratio * normalized_advantage
