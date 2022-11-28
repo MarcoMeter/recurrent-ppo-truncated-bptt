@@ -47,7 +47,7 @@ class Buffer():
             "obs": self.obs,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            "loss_mask": torch.ones((self.n_workers, self.worker_steps), dtype=torch.float32)
+            "loss_mask": torch.ones((self.n_workers, self.worker_steps), dtype=torch.bool)
         }
         
         # Add collected recurrent cell states to the dictionary
