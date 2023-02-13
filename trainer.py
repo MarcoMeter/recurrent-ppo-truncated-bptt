@@ -39,17 +39,17 @@ class PPOTrainer:
         # Init dummy environment and retrieve action and observation spaces
         print("Step 1: Init dummy environment")
         dummy_env = create_env(self.config["env"])
-        observation_space = dummy_env.observation_space
-        action_space_shape = (dummy_env.action_space.n,)
+        self.observation_space = dummy_env.observation_space
+        self.action_space_shape = (dummy_env.action_space.n,)
         dummy_env.close()
 
         # Init buffer
         print("Step 2: Init buffer")
-        self.buffer = Buffer(self.config, observation_space, self.device)
+        self.buffer = Buffer(self.config, self.observation_space, self.action_space_shape, self.device)
 
         # Init model
         print("Step 3: Init model and optimizer")
-        self.model = ActorCriticModel(self.config, observation_space, action_space_shape).to(self.device)
+        self.model = ActorCriticModel(self.config, self.observation_space, self.action_space_shape).to(self.device)
         self.model.train()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
 
@@ -58,7 +58,7 @@ class PPOTrainer:
         self.workers = [Worker(self.config["env"]) for w in range(self.config["n_workers"])]
 
         # Setup observation placeholder   
-        self.obs = np.zeros((self.config["n_workers"],) + observation_space.shape, dtype=np.float32)
+        self.obs = np.zeros((self.config["n_workers"],) + self.observation_space.shape, dtype=np.float32)
 
         # Setup initial recurrent cell states (LSTM: tuple(tensor, tensor) or GRU: tensor)
         hxs, cxs = self.model.init_recurrent_cell_states(self.config["n_workers"], self.device)
@@ -141,11 +141,16 @@ class PPOTrainer:
                 policy, value, self.recurrent_cell = self.model(torch.tensor(self.obs), self.recurrent_cell, self.device)
                 self.buffer.values[:, t] = value
 
-                # Sample actions
-                action = policy.sample()
-                log_prob = policy.log_prob(action)
-                self.buffer.actions[:, t] = action
-                self.buffer.log_probs[:, t] = log_prob
+                # Sample actions from each individual policy branch
+                actions = []
+                log_probs = []
+                for action_branch in policy:
+                    action = action_branch.sample()
+                    actions.append(action)
+                    log_probs.append(action_branch.log_prob(action))
+                # Write actions, log_probs and values to buffer
+                self.buffer.actions[:, t] = torch.stack(actions, dim=1)
+                self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
 
             # Send actions to the environments
             for w, worker in enumerate(self.workers):
@@ -217,9 +222,14 @@ class PPOTrainer:
         # Forward model
         policy, value, _ = self.model(samples["obs"], recurrent_cell, self.device, self.recurrence["sequence_length"])
         
-        # Get the log probabilities and the entropies of the sampled actions
-        log_probs = policy.log_prob(samples["actions"])
-        entropies = policy.entropy()
+        # Policy Loss
+        # Retrieve and process log_probs from each policy branch
+        log_probs, entropies = [], []
+        for i, policy_branch in enumerate(policy):
+            log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
+            entropies.append(policy_branch.entropy())
+        log_probs = torch.stack(log_probs, dim=1)
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
         
         # Remove paddings
         value = value[samples["loss_mask"]]
@@ -228,6 +238,7 @@ class PPOTrainer:
 
         # Compute policy surrogates to establish the policy loss
         normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape)) # Repeat is necessary for multi-discrete action spaces
         ratio = torch.exp(log_probs - samples["log_probs"])
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * normalized_advantage

@@ -4,11 +4,12 @@ import numpy as np
 
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies. """
-    def __init__(self, config:dict, observation_space:spaces.Box, device:torch.device) -> None:
+    def __init__(self, config:dict, observation_space:spaces.Box, action_space_shape:tuple, device:torch.device) -> None:
         """
         Arguments:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             observation_space {spaces.Box} -- The observation space of the agent
+            action_space_shape {tuple} -- Shape of the action space
             device {torch.device} -- The device that will be used for training
         """
         # Setup members
@@ -25,12 +26,12 @@ class Buffer():
 
         # Initialize the buffer's data storage
         self.rewards = np.zeros((self.n_workers, self.worker_steps), dtype=np.float32)
-        self.actions = torch.zeros((self.n_workers, self.worker_steps), dtype=torch.long)
+        self.actions = torch.zeros((self.n_workers, self.worker_steps, len(action_space_shape)), dtype=torch.long)
         self.dones = np.zeros((self.n_workers, self.worker_steps), dtype=np.bool)
         self.obs = torch.zeros((self.n_workers, self.worker_steps) + observation_space.shape)
         self.hxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size))
         self.cxs = torch.zeros((self.n_workers, self.worker_steps, hidden_state_size))
-        self.log_probs = torch.zeros((self.n_workers, self.worker_steps))
+        self.log_probs = torch.zeros((self.n_workers, self.worker_steps, len(action_space_shape)))
         self.values = torch.zeros((self.n_workers, self.worker_steps))
         self.advantages = torch.zeros((self.n_workers, self.worker_steps))
 

@@ -38,7 +38,7 @@ class Minigrid:
         return obs
 
     def step(self, action):
-        obs, reward, done, info = self._env.step(action)
+        obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         obs = self._env.get_obs_render(obs["image"], tile_size=28).astype(np.float32) / 255.
         if done:
