@@ -6,7 +6,7 @@ class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies. """
     def __init__(self, config:dict, observation_space:spaces.Box, device:torch.device) -> None:
         """
-        Args:
+        Arguments:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             observation_space {spaces.Box} -- The observation space of the agent
             device {torch.device} -- The device that will be used for training
@@ -110,7 +110,7 @@ class Buffer():
     def _pad_sequence(self, sequence:np.ndarray, target_length:int) -> np.ndarray:
         """Pads a sequence to the target length using zeros.
 
-        Args:
+        Arguments:
             sequence {np.ndarray} -- The to be padded array (i.e. sequence)
             target_length {int} -- The desired length of the sequence
 

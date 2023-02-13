@@ -5,7 +5,7 @@ from environments.poc_memory_env import PocMemoryEnv
 def create_env(env_name:str):
     """Initializes an environment based on the provided environment name.
     
-    Args:
+    Arguments:
         env_name {str}: Name of the to be instantiated environment
 
     Returns:
@@ -23,7 +23,7 @@ def create_env(env_name:str):
 def polynomial_decay(initial:float, final:float, max_decay_steps:int, power:float, current_step:int) -> float:
     """Decays hyperparameters polynomially. If power is set to 1.0, the decay behaves linearly. 
 
-    Args:
+    Arguments:
         initial {float} -- Initial hyperparameter such as the learning rate
         final {float} -- Final hyperparameter such as the learning rate
         max_decay_steps {int} -- The maximum numbers of steps to decay the hyperparameter

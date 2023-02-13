@@ -8,7 +8,7 @@ class ActorCriticModel(nn.Module):
     def __init__(self, config, observation_space, action_space_shape):
         """Model setup
 
-        Args:
+        Arguments:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             observation_space {box} -- Properties of the agent's observation space
             action_space_shape {tuple} -- Dimensions of the action space
@@ -72,7 +72,7 @@ class ActorCriticModel(nn.Module):
     def forward(self, obs:torch.tensor, recurrent_cell:torch.tensor, device:torch.device, sequence_length:int=1):
         """Forward pass of the model
 
-        Args:
+        Arguments:
             obs {torch.tensor} -- Batch of observations
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer
             device {torch.device} -- Current device
@@ -133,7 +133,7 @@ class ActorCriticModel(nn.Module):
     def get_conv_output(self, shape:tuple) -> int:
         """Computes the output size of the convolutional layers by feeding a dummy tensor.
 
-        Args:
+        Arguments:
             shape {tuple} -- Input shape of the data feeding the first convolutional layer
 
         Returns:
@@ -147,7 +147,7 @@ class ActorCriticModel(nn.Module):
     def init_recurrent_cell_states(self, num_sequences:int, device:torch.device) -> tuple:
         """Initializes the recurrent cell states (hxs, cxs) as zeros.
 
-        Args:
+        Arguments:
             num_sequences {int} -- The number of sequences determines the number of the to be generated initial recurrent cell states.
             device {torch.device} -- Target device.
 

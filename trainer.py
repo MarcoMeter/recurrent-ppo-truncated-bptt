@@ -16,7 +16,7 @@ class PPOTrainer:
     def __init__(self, config:dict, run_id:str="run", device:torch.device=torch.device("cpu")) -> None:
         """Initializes all needed training components.
 
-        Args:
+        Arguments:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             run_id {str, optional} -- A tag used to save Tensorboard Summaries and the trained model. Defaults to "run".
             device {torch.device, optional} -- Determines the training device. Defaults to cpu.
@@ -181,7 +181,7 @@ class PPOTrainer:
     def _train_epochs(self, learning_rate:float, clip_range:float, beta:float) -> list:
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
-        Args:
+        Arguments:
             learning_rate {float} -- The current learning rate
             clip_range {float} -- The current clip range
             beta {float} -- The current entropy bonus coefficient
@@ -199,7 +199,7 @@ class PPOTrainer:
     def _train_mini_batch(self, samples:dict, learning_rate:float, clip_range:float, beta:float) -> list:
         """Uses one mini batch to optimize the model.
 
-        Args:
+        Arguments:
             mini_batch {dict} -- The to be used mini batch data to optimize the model
             learning_rate {float} -- Current learning rate
             clip_range {float} -- Current clip range
@@ -262,7 +262,7 @@ class PPOTrainer:
     def _write_training_summary(self, update, training_stats, episode_result) -> None:
         """Writes to an event file based on the run-id argument.
 
-        Args:
+        Arguments:
             update {int} -- Current PPO Update
             training_stats {list} -- Statistics of the training algorithm
             episode_result {dict} -- Statistics of completed episodes
@@ -283,7 +283,7 @@ class PPOTrainer:
     def _process_episode_info(episode_info:list) -> dict:
         """Extracts the mean and std of completed episode statistics like length and total reward.
 
-        Args:
+        Arguments:
             episode_info {list} -- list of dictionaries containing results of completed episodes during the sampling phase
 
         Returns:
