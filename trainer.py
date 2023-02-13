@@ -216,25 +216,32 @@ class PPOTrainer:
 
         # Forward model
         policy, value, _ = self.model(samples["obs"], recurrent_cell, self.device, self.recurrence["sequence_length"])
+        
+        # Get the log probabilities and the entropies of the sampled actions
+        log_probs = policy.log_prob(samples["actions"])
+        entropies = policy.entropy()
+        
+        # Remove paddings
+        value = value[samples["loss_mask"]]
+        log_probs = log_probs[samples["loss_mask"]]
+        entropies = entropies[samples["loss_mask"]] 
 
         # Compute policy surrogates to establish the policy loss
-        advantages_unpaddedd = torch.masked_select(samples["advantages"], samples["loss_mask"])
-        normalized_advantage = (samples["advantages"] - advantages_unpaddedd.mean()) / (advantages_unpaddedd.std() + 1e-8)
-        log_probs = policy.log_prob(samples["actions"])
+        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
         ratio = torch.exp(log_probs - samples["log_probs"])
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
-        policy_loss = PPOTrainer._masked_mean(policy_loss, samples["loss_mask"])
+        policy_loss = policy_loss.mean()
 
         # Value  function loss
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = PPOTrainer._masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = vf_loss.mean()
 
         # Entropy Bonus
-        entropy_bonus = PPOTrainer._masked_mean(policy.entropy(), samples["loss_mask"])
+        entropy_bonus = entropies.mean()
 
         # Complete loss
         loss = -(policy_loss - self.config["value_loss_coefficient"] * vf_loss + beta * entropy_bonus)
@@ -271,21 +278,6 @@ class PPOTrainer:
         self.writer.add_scalar("training/sequence_length", self.buffer.true_sequence_length, update)
         self.writer.add_scalar("training/value_mean", torch.mean(self.buffer.values), update)
         self.writer.add_scalar("training/advantage_mean", torch.mean(self.buffer.advantages), update)
-
-    @staticmethod
-    def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
-            """
-            Returns the mean of the tensor but ignores the values specified by the mask.
-            This is used for masking out the padding of the loss functions.
-
-            Args:
-                tensor {Tensor} -- The to be masked tensor
-                mask {Tensor} -- The mask that is used to mask out padded values of a loss function
-
-            Returns:
-                {Tensor} -- Returns the mean of the masked tensor.
-            """
-            return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
 
     @staticmethod
     def _process_episode_info(episode_info:list) -> dict:
