@@ -1,5 +1,5 @@
 import torch
-from configs import cartpole_masked_config, minigrid_config, poc_memory_env_config
+from configs import cartpole_masked_config, minigrid_config, poc_memory_env_config, memory_gym_config
 from docopt import docopt
 from trainer import PPOTrainer
 

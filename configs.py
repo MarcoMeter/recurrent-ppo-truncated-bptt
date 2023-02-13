@@ -1,6 +1,7 @@
 def cartpole_masked_config():
     return {
-        "env": "CartPoleMasked",
+        "environment":
+            {"type": "CartPoleMasked"},
         "gamma": 0.99,
         "lamda": 0.95,
         "updates": 100,
@@ -42,7 +43,8 @@ def cartpole_masked_config():
 
 def minigrid_config():
     return {
-        "env": "Minigrid",
+        "environment":
+            {"type": "Minigrid"},
         "gamma": 0.99,
         "lamda": 0.95,
         "updates": 500,
@@ -84,7 +86,8 @@ def minigrid_config():
 
 def poc_memory_env_config():
     return {
-        "env": "PocMemoryEnv",
+        "environment":
+            {"type": "PocMemoryEnv"},
         "gamma": 0.99,
         "lamda": 0.95,
         "updates": 30,
@@ -121,5 +124,65 @@ def poc_memory_env_config():
             "final": 0.2,
             "power": 1.0,
             "max_decay_steps": 30
+            }
+    }
+  
+def memory_gym_config():
+    return {
+        "environment":
+            {
+            "type": "MortarMayhem-Grid",
+            "name": "MortarMayhem-Grid-v0",
+            "reset_params": 
+                {
+                "start-seed": 0,
+                "num-seeds": 10000,
+                "agent_scale": 0.25,
+                "arena_size": 5,
+                "allowed_commands": 5,
+                "command_count": [10],
+                "explosion_duration": [2],
+                "explosion_delay": [5],
+                "reward_command_failure": 0.0,
+                "reward_command_success": 0.1,
+                "reward_episode_success": 0.0
+                }
+            }, 
+        "gamma": 0.995,
+        "lamda": 0.95,
+        "updates": 10000,
+        "epochs": 3,
+        "n_workers": 16,
+        "worker_steps": 256,
+        "n_mini_batch": 8,
+        "value_loss_coefficient": 0.25,
+        "hidden_layer_size": 512,
+        "recurrence": 
+            {
+            "sequence_length": 8,
+            "hidden_state_size": 256,
+            "layer_type": "lstm",
+            "reset_hidden_state": False
+            },
+        "learning_rate_schedule":
+            {
+            "initial": 2.0e-4,
+            "final": 2.0e-4,
+            "power": 1.0,
+            "max_decay_steps": 300
+            },
+        "beta_schedule":
+            {
+            "initial": 0.001,
+            "final": 0.001,
+            "power": 1.0,
+            "max_decay_steps": 300
+            },
+        "clip_range_schedule":
+            {
+            "initial": 0.2,
+            "final": 0.2,
+            "power": 1.0,
+            "max_decay_steps": 300
             }
     }
