@@ -114,6 +114,11 @@ class PPOTrainer:
 
             # Write training statistics to tensorboard
             self._write_training_summary(update, training_stats, episode_result)
+            
+            # Free memory
+            del(self.buffer.samples_flat)
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
 
         # Save the trained model at the end of the training
         self._save_model()
