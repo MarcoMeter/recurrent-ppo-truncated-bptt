@@ -20,7 +20,7 @@ def create_env(config:dict, render:bool=False):
         return CartPole(mask_velocity=True)
     if config["type"] == "Minigrid":
         return Minigrid()
-    if config["type"] in ["SearingSpotlights", "MortarMayhem", "MortarMayhem-Grid", "MysteryPath", "MysteryPath-Grid"]:
+    if config["type"] == "MemoryGym":
         return MemoryGymWrapper(env_name = config["name"], reset_params=config["reset_params"], realtime_mode=render)
 
 def polynomial_decay(initial:float, final:float, max_decay_steps:int, power:float, current_step:int) -> float:
