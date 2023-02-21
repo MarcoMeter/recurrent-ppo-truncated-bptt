@@ -10,9 +10,7 @@ class Minigrid:
         
         # Set the environment rendering mode
         self._realtime_mode = realtime_mode
-        render_mode = None
-        if realtime_mode:
-            render_mode = "human"
+        render_mode = "human" if realtime_mode else "rgb_array"
             
         self._env = gym.make("MiniGrid-MemoryS9-v0", agent_view_size = 3, tile_size=28, render_mode=render_mode)
         # Decrease the agent's view size to raise the agent's memory challenge
@@ -43,10 +41,6 @@ class Minigrid:
         obs = np.swapaxes(obs, 0, 2)
         obs = np.swapaxes(obs, 2, 1)
         
-        # Render environment?
-        if self._realtime_mode:
-            self._env.render()
-            
         return obs
 
     def step(self, action):
@@ -62,15 +56,10 @@ class Minigrid:
         obs = np.swapaxes(obs, 0, 2)
         obs = np.swapaxes(obs, 2, 1)
         
-        # Render environment?
-        if self._realtime_mode:
-            self._env.render()
-            time.sleep(0.5)
-        
         return obs, reward, done, info
 
     def render(self):
-        img = self._env.render(tile_size = 96)
+        img = self._env.render()
         time.sleep(0.5)
         return img
 
