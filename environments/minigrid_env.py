@@ -6,8 +6,15 @@ from gym_minigrid.wrappers import ViewSizeWrapper
 from minigrid.wrappers import *
 
 class Minigrid:
-    def __init__(self):
-        self._env = gym.make("MiniGrid-MemoryS9-v0", agent_view_size = 3, tile_size=28)
+    def __init__(self, realtime_mode = False):
+        
+        # Set the environment rendering mode
+        self._realtime_mode = realtime_mode
+        render_mode = None
+        if realtime_mode:
+            render_mode = "human"
+            
+        self._env = gym.make("MiniGrid-MemoryS9-v0", agent_view_size = 3, tile_size=28, render_mode=render_mode)
         # Decrease the agent's view size to raise the agent's memory challenge
         # On MiniGrid-Memory-S7-v0, the default view size is too large to actually demand a recurrent policy.
         self._env = RGBImgPartialObsWrapper(self._env, tile_size=28)
@@ -35,6 +42,11 @@ class Minigrid:
         # To conform PyTorch requirements, the channel dimension has to be first.
         obs = np.swapaxes(obs, 0, 2)
         obs = np.swapaxes(obs, 2, 1)
+        
+        # Render environment?
+        if self._realtime_mode:
+            self._env.render()
+            
         return obs
 
     def step(self, action):
@@ -49,6 +61,11 @@ class Minigrid:
         # To conform PyTorch requirements, the channel dimension has to be first.
         obs = np.swapaxes(obs, 0, 2)
         obs = np.swapaxes(obs, 2, 1)
+        
+        # Render environment?
+        if self._realtime_mode:
+            self._env.render()
+        
         return obs, reward, done, info
 
     def render(self):

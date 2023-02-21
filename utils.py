@@ -19,7 +19,7 @@ def create_env(config:dict, render:bool=False):
     if config["type"] == "CartPoleMasked":
         return CartPole(mask_velocity=True)
     if config["type"] == "Minigrid":
-        return Minigrid()
+        return Minigrid(realtime_mode=render)
     if config["type"] == "MemoryGym":
         return MemoryGymWrapper(env_name = config["name"], reset_params=config["reset_params"], realtime_mode=render)
 
