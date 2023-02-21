@@ -65,6 +65,7 @@ class Minigrid:
         # Render environment?
         if self._realtime_mode:
             self._env.render()
+            time.sleep(0.5)
         
         return obs, reward, done, info
 
