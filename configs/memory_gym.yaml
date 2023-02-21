@@ -1,5 +1,5 @@
 environment:
-    type: "MemoryGYM"
+    type: "MemoryGym"
     name: "MortarMayhem-Grid-v0"
     reset_params: 
         start-seed: 0
