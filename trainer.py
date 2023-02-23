@@ -225,7 +225,7 @@ class PPOTrainer:
             recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
 
         # Forward model
-        policy, value, _ = self.model(samples["obs"], recurrent_cell, self.device, self.recurrence["sequence_length"])
+        policy, value, _ = self.model(samples["obs"], recurrent_cell, self.device, self.buffer.actual_sequence_length)
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch

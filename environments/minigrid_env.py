@@ -2,7 +2,6 @@ import time
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
-from gym_minigrid.wrappers import ViewSizeWrapper
 from minigrid.wrappers import *
 
 class Minigrid:
