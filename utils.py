@@ -19,9 +19,9 @@ def create_env(config:dict, render:bool=False):
     if config["type"] == "CartPoleMasked":
         return CartPole(mask_velocity=True)
     if config["type"] == "Minigrid":
-        return Minigrid(realtime_mode=render)
+        return Minigrid(env_name = config["name"], realtime_mode = render)
     if config["type"] == "MemoryGym":
-        return MemoryGymWrapper(env_name = config["name"], reset_params=config["reset_params"], realtime_mode=render)
+        return MemoryGymWrapper(env_name = config["name"], reset_params=config["reset_params"], realtime_mode = render)
 
 def polynomial_decay(initial:float, final:float, max_decay_steps:int, power:float, current_step:int) -> float:
     """Decays hyperparameters polynomially. If power is set to 1.0, the decay behaves linearly. 
