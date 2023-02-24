@@ -3,8 +3,9 @@ import numpy as np
 import time
 
 class CartPole:
-    def __init__(self, mask_velocity = False):
-        self._env = gym.make("CartPole-v0")
+    def __init__(self, mask_velocity = False, realtime_mode = False):
+        render_mode = "human" if realtime_mode else None
+        self._env = gym.make("CartPole-v0", render_mode = render_mode)
         # Whether to make CartPole partial observable by masking out the velocity.
         if not mask_velocity:
             self._obs_mask = np.ones(4, dtype=np.float32)
