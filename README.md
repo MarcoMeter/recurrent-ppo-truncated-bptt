@@ -243,6 +243,10 @@ This is rather considered as a feature and not a bug. For environments that prod
       <td>hidden_layer_size</td>
       <td>Number of hidden units in each linear hidden layer</td>
     </tr>
+    <tr>
+      <td>max_grad_norm</td>
+      <td>Gradients are clipped by the specified max norm</td>
+    </tr>
   </tbody>
 </table>
 
