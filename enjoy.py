@@ -26,7 +26,7 @@ def main():
     state_dict, config = pickle.load(open(model_path, "rb"))
 
     # Instantiate environment
-    env = create_env(config["env"])
+    env = create_env(config["environment"], render=True)
 
     # Initialize model and load its parameters
     model = ActorCriticModel(config, env.observation_space, (env.action_space.n,))
@@ -52,12 +52,14 @@ def main():
         # Forward model
         policy, value, recurrent_cell = model(torch.tensor(np.expand_dims(obs, 0)), recurrent_cell, device, 1)
         # Sample action
-        action = policy.sample().cpu().numpy()
-        # Step environemnt
-        obs, reward, done, info = env.step(int(action))
+        action = []
+        for action_branch in policy:
+            action.append(action_branch.sample().item())
+        # Step environment
+        obs, reward, done, info = env.step(action)
         episode_rewards.append(reward)
     
-    # after done, render last state
+    # After done, render last state
     env.render()
 
     print("Episode length: " + str(info["length"]))

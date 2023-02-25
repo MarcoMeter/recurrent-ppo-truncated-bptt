@@ -1,6 +1,5 @@
-from gym.spaces import space
+from gymnasium import spaces
 import numpy as np
-from gym import spaces
 import time
 import os
 from reprint import output
@@ -51,10 +50,10 @@ class PocMemoryEnv():
         self._position = np.random.choice(self.possible_positions)
         self._rewards = []
         self._step_count = 0
-        goals = np.asarray([-1.0, 1.0])
+        goals = np.asarray([-1.0, 1.0], dtype=np.float32)
         # Determine the goal
         self._goals = goals[np.random.permutation(2)]
-        obs = np.asarray([self._goals[0], self._position, self._goals[1]])
+        obs = np.asarray([self._goals[0], self._position, self._goals[1]], dtype=np.float32)
         return obs
 
     @property
@@ -77,8 +76,8 @@ class PocMemoryEnv():
         """
         Executes the agents action in the environment if the agent is allowed to move.
 
-        Args:
-            action {int} -- The agent action which should be executed.
+        Arguments:
+            action {list} -- The agent action which should be executed.
 
         Returns:
             {numpy.ndarray} -- Observation of the agent.
@@ -90,13 +89,14 @@ class PocMemoryEnv():
         done = False
         info = None
         success = False
+        action = action[0]
 
         if self._num_show_steps > self._step_count:
             # Execute the agent action if agent is allowed to move
             self._position += self._step_size * (1 - self.freeze) if action == 1 else -self._step_size * (1 - self.freeze)
             self._position = np.round(self._position, 2)
 
-            obs = np.asarray([self._goals[0], self._position, self._goals[1]])
+            obs = np.asarray([self._goals[0], self._position, self._goals[1]], dtype=np.float32)
 
             if self.freeze: # Check if agent is allowed to move
                 self._step_count += 1
@@ -106,7 +106,7 @@ class PocMemoryEnv():
         else:
             self._position += self._step_size if action == 1 else -self._step_size
             self._position = np.round(self._position, 2)
-            obs = np.asarray([0.0, self._position, 0.0]) # mask out goal information
+            obs = np.asarray([0.0, self._position, 0.0], dtype=np.float32) # mask out goal information
 
         # Determine the reward function and episode termination
         if self._position == -1.0:

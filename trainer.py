@@ -16,7 +16,7 @@ class PPOTrainer:
     def __init__(self, config:dict, run_id:str="run", device:torch.device=torch.device("cpu")) -> None:
         """Initializes all needed training components.
 
-        Args:
+        Arguments:
             config {dict} -- Configuration and hyperparameters of the environment, trainer and model.
             run_id {str, optional} -- A tag used to save Tensorboard Summaries and the trained model. Defaults to "run".
             device {torch.device, optional} -- Determines the training device. Defaults to cpu.
@@ -38,27 +38,27 @@ class PPOTrainer:
 
         # Init dummy environment and retrieve action and observation spaces
         print("Step 1: Init dummy environment")
-        dummy_env = create_env(self.config["env"])
-        observation_space = dummy_env.observation_space
-        action_space_shape = (dummy_env.action_space.n,)
+        dummy_env = create_env(self.config["environment"])
+        self.observation_space = dummy_env.observation_space
+        self.action_space_shape = (dummy_env.action_space.n,)
         dummy_env.close()
 
         # Init buffer
         print("Step 2: Init buffer")
-        self.buffer = Buffer(self.config, observation_space, self.device)
+        self.buffer = Buffer(self.config, self.observation_space, self.action_space_shape, self.device)
 
         # Init model
         print("Step 3: Init model and optimizer")
-        self.model = ActorCriticModel(self.config, observation_space, action_space_shape).to(self.device)
+        self.model = ActorCriticModel(self.config, self.observation_space, self.action_space_shape).to(self.device)
         self.model.train()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
 
         # Init workers
         print("Step 4: Init environment workers")
-        self.workers = [Worker(self.config["env"]) for w in range(self.config["n_workers"])]
+        self.workers = [Worker(self.config["environment"]) for w in range(self.config["n_workers"])]
 
         # Setup observation placeholder   
-        self.obs = np.zeros((self.config["n_workers"],) + observation_space.shape, dtype=np.float32)
+        self.obs = np.zeros((self.config["n_workers"],) + self.observation_space.shape, dtype=np.float32)
 
         # Setup initial recurrent cell states (LSTM: tuple(tensor, tensor) or GRU: tensor)
         hxs, cxs = self.model.init_recurrent_cell_states(self.config["n_workers"], self.device)
@@ -114,6 +114,11 @@ class PPOTrainer:
 
             # Write training statistics to tensorboard
             self._write_training_summary(update, training_stats, episode_result)
+            
+            # Free memory
+            del(self.buffer.samples_flat)
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
 
         # Save the trained model at the end of the training
         self._save_model()
@@ -141,11 +146,16 @@ class PPOTrainer:
                 policy, value, self.recurrent_cell = self.model(torch.tensor(self.obs), self.recurrent_cell, self.device)
                 self.buffer.values[:, t] = value
 
-                # Sample actions
-                action = policy.sample()
-                log_prob = policy.log_prob(action)
-                self.buffer.actions[:, t] = action
-                self.buffer.log_probs[:, t] = log_prob
+                # Sample actions from each individual policy branch
+                actions = []
+                log_probs = []
+                for action_branch in policy:
+                    action = action_branch.sample()
+                    actions.append(action)
+                    log_probs.append(action_branch.log_prob(action))
+                # Write actions, log_probs and values to buffer
+                self.buffer.actions[:, t] = torch.stack(actions, dim=1)
+                self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
 
             # Send actions to the environments
             for w, worker in enumerate(self.workers):
@@ -181,7 +191,7 @@ class PPOTrainer:
     def _train_epochs(self, learning_rate:float, clip_range:float, beta:float) -> list:
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
-        Args:
+        Arguments:
             learning_rate {float} -- The current learning rate
             clip_range {float} -- The current clip range
             beta {float} -- The current entropy bonus coefficient
@@ -199,7 +209,7 @@ class PPOTrainer:
     def _train_mini_batch(self, samples:dict, learning_rate:float, clip_range:float, beta:float) -> list:
         """Uses one mini batch to optimize the model.
 
-        Args:
+        Arguments:
             mini_batch {dict} -- The to be used mini batch data to optimize the model
             learning_rate {float} -- Current learning rate
             clip_range {float} -- Current clip range
@@ -215,26 +225,39 @@ class PPOTrainer:
             recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
 
         # Forward model
-        policy, value, _ = self.model(samples["obs"], recurrent_cell, self.device, self.recurrence["sequence_length"])
+        policy, value, _ = self.model(samples["obs"], recurrent_cell, self.device, self.buffer.actual_sequence_length)
+        
+        # Policy Loss
+        # Retrieve and process log_probs from each policy branch
+        log_probs, entropies = [], []
+        for i, policy_branch in enumerate(policy):
+            log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
+            entropies.append(policy_branch.entropy())
+        log_probs = torch.stack(log_probs, dim=1)
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+        
+        # Remove paddings
+        value = value[samples["loss_mask"]]
+        log_probs = log_probs[samples["loss_mask"]]
+        entropies = entropies[samples["loss_mask"]] 
 
         # Compute policy surrogates to establish the policy loss
-        advantages_unpaddedd = torch.masked_select(samples["advantages"], samples["loss_mask"])
-        normalized_advantage = (samples["advantages"] - advantages_unpaddedd.mean()) / (advantages_unpaddedd.std() + 1e-8)
-        log_probs = policy.log_prob(samples["actions"])
+        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape)) # Repeat is necessary for multi-discrete action spaces
         ratio = torch.exp(log_probs - samples["log_probs"])
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
-        policy_loss = PPOTrainer._masked_mean(policy_loss, samples["loss_mask"])
+        policy_loss = policy_loss.mean()
 
         # Value  function loss
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = PPOTrainer._masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = vf_loss.mean()
 
         # Entropy Bonus
-        entropy_bonus = PPOTrainer._masked_mean(policy.entropy(), samples["loss_mask"])
+        entropy_bonus = entropies.mean()
 
         # Complete loss
         loss = -(policy_loss - self.config["value_loss_coefficient"] * vf_loss + beta * entropy_bonus)
@@ -244,7 +267,7 @@ class PPOTrainer:
             pg["lr"] = learning_rate
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.config["max_grad_norm"])
         self.optimizer.step()
 
         return [policy_loss.cpu().data.numpy(),
@@ -255,7 +278,7 @@ class PPOTrainer:
     def _write_training_summary(self, update, training_stats, episode_result) -> None:
         """Writes to an event file based on the run-id argument.
 
-        Args:
+        Arguments:
             update {int} -- Current PPO Update
             training_stats {list} -- Statistics of the training algorithm
             episode_result {dict} -- Statistics of completed episodes
@@ -273,25 +296,10 @@ class PPOTrainer:
         self.writer.add_scalar("training/advantage_mean", torch.mean(self.buffer.advantages), update)
 
     @staticmethod
-    def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
-            """
-            Returns the mean of the tensor but ignores the values specified by the mask.
-            This is used for masking out the padding of the loss functions.
-
-            Args:
-                tensor {Tensor} -- The to be masked tensor
-                mask {Tensor} -- The mask that is used to mask out padded values of a loss function
-
-            Returns:
-                {Tensor} -- Returns the mean of the masked tensor.
-            """
-            return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
-
-    @staticmethod
     def _process_episode_info(episode_info:list) -> dict:
         """Extracts the mean and std of completed episode statistics like length and total reward.
 
-        Args:
+        Arguments:
             episode_info {list} -- list of dictionaries containing results of completed episodes during the sampling phase
 
         Returns:

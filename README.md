@@ -1,6 +1,18 @@
 # Recurrent Proximal Policy Optimization using Truncated BPTT
 
-This repository features a PyTorch based implementation of PPO using a recurrent policy supporting truncated backpropagation through time. Its intention is to provide a baseline/reference implementation on how to successfully employ recurrent neural networks alongside PPO and similar policy gradient algorithms.
+This repository features a PyTorch based implementation of PPO using a recurrent policy supporting truncated backpropagation through time. Its intention is to provide a clean baseline/reference implementation on how to successfully employ recurrent neural networks alongside PPO and similar policy gradient algorithms.
+
+We also offer a clean [TransformerXL + PPO baseline repository](https://github.com/MarcoMeter/episodic-transformer-memory-ppo).
+
+# Latest Updates (February 2023)
+
+- Added support for Memory Gym
+- Added yaml configs
+- Added max grad norm hyperparameter to the config
+- Gymnasium is used instead of gym
+- Only model inputs are padded now
+- Buffer tensors are freed from memory after optimization
+- Fixed dynamic sequence length
 
 # Features
 
@@ -12,35 +24,32 @@ This repository features a PyTorch based implementation of PPO using a recurrent
   - Proof-of-concept Memory Task (PocMemoryEnv)
   - CartPole
     - Masked velocity
-  - MinigridMemory
+  - Minigrid Memory
     - Visual Observation Space: 3x84x84
     - Egocentric Agent View Size: 3x3 (default 7x7)
     - Action Space: forward, rotate left, rotate right
+  - [MemoryGym](https://github.com/MarcoMeter/drl-memory-gym)
+    - Mortar Mayhem
+    - Mystery Path
+    - Searing Spotlights (WIP)
 - Tensorboard
 - Enjoy (watch a trained agent play)
 
 # Citing this Work
 
-```
-@misc{Pleines2022,
-  doi = {10.48550/ARXIV.2205.11104},
-  url = {https://arxiv.org/abs/2205.11104},
-  author = {Pleines, Marco and Pallasch, Matthias and Zimmer, Frank and Preuss, Mike},
-  title = {Generalization, Mayhems and Limits in Recurrent Proximal Policy Optimization},
-  publisher = {arXiv},
-  journal   = {CoRR},
-  eprinttype = {arXiv},
-  eprint    = {2205.11104},
-  year = {2022},
+```bibtex
+@inproceedings{
+  pleines2023memory,
+  title={Memory Gym: Partially Observable Challenges to Memory-Based Agents},
+  author={Marco Pleines and Matthias Pallasch and Frank Zimmer and Mike Preuss},
+  booktitle={International Conference on Learning Representations},
+  year={2023},
+  url={https://openreview.net/forum?id=jHc8dCx6DDr}
 }
 ```
 
 # Documentation Contents
 
-- [Recurrent Proximal Policy Optimization using Truncated BPTT](#recurrent-proximal-policy-optimization-using-truncated-bptt)
-- [Features](#features)
-- [Citing this Work](#citing-this-work)
-- [Documentation Contents](#documentation-contents)
 - [Installation](#installation)
 - [Train a model](#train-a-model)
 - [Enjoy a model](#enjoy-a-model)
@@ -66,19 +75,29 @@ This repository features a PyTorch based implementation of PPO using a recurrent
 
 # Installation
 
-Install [PyTorch](https://pytorch.org/get-started/locally/) 1.8.1 depending on your platform.
+Install [PyTorch](https://pytorch.org/get-started/locally/) 1.12.1 depending on your platform. We recommend the usage of [Anaconda](https://www.anaconda.com/).
+
+Create Anaconda environment:
+```bash
+conda create -n recurrent-ppo python=3.7 --yes
+conda activate recurrent-ppo
+```
 
 CPU:
-
-`pip install torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html`
+```bash
+conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cpuonly -c pytorch
+```
 
 CUDA:
-
-`pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html`
+```bash
+conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge
+```
 
 Install the remaining requirements and you are good to go:
 
-`pip install -r requirements.txt`
+```bash
+pip install -r requirements.txt
+```
 
 # Train a model
 
@@ -234,6 +253,10 @@ This is rather considered as a feature and not a bug. For environments that prod
       <td>hidden_layer_size</td>
       <td>Number of hidden units in each linear hidden layer</td>
     </tr>
+    <tr>
+      <td>max_grad_norm</td>
+      <td>Gradients are clipped by the specified max norm</td>
+    </tr>
   </tbody>
 </table>
 
@@ -283,6 +306,7 @@ Run `tensorboad --logdir=summaries` to watch the training statistics in your bro
 # Results
 
 The code for plotting the results can be found in the results directory.
+Results on Memory Gym can be found in our [TransformerXL + PPO baseline repository](https://github.com/MarcoMeter/episodic-transformer-memory-ppo).
 
 ## MinigridMemory-S9
 
