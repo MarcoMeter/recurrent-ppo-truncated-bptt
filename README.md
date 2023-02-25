@@ -4,6 +4,16 @@ This repository features a PyTorch based implementation of PPO using a recurrent
 
 We also offer a clean [TransformerXL + PPO baseline repository](https://github.com/MarcoMeter/episodic-transformer-memory-ppo).
 
+# Latest Updates (February 2023)
+
+- Added support for Memory Gym
+- Added yaml configs
+- Added max grad norm hyperparameter to the config
+- Gymnasium is used instead of gym
+- Only model inputs are padded now
+- Buffer tensors are freed from memory after optimization
+- Fixed dynamic sequence length
+
 # Features
 
 - Recurrent Policy
