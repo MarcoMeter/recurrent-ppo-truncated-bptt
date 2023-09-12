@@ -75,22 +75,22 @@ We also offer a clean [TransformerXL + PPO baseline repository](https://github.c
 
 # Installation
 
-Install [PyTorch](https://pytorch.org/get-started/locally/) 1.12.1 depending on your platform. We recommend the usage of [Anaconda](https://www.anaconda.com/).
+Install [PyTorch](https://pytorch.org/get-started/locally/) depending on your platform. We recommend the usage of [Anaconda](https://www.anaconda.com/).
 
 Create Anaconda environment:
 ```bash
-conda create -n recurrent-ppo python=3.7 --yes
+conda create -n recurrent-ppo python=3.11 --yes
 conda activate recurrent-ppo
 ```
 
 CPU:
 ```bash
-conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cpuonly -c pytorch
+conda install pytorch torchvision torchaudio cpuonly -c pytorch
 ```
 
 CUDA:
 ```bash
-conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge
+conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
 ```
 
 Install the remaining requirements and you are good to go:
